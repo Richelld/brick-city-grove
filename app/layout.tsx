@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import ForestGuide from "./components/ForestGuide";
 import InlineScript from "./components/InlineScript";
 import SiteHeader from "./components/SiteHeader";
 import "./globals.css";
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <SiteHeader />
         {children}
+        <ForestGuide />
       </body>
     </html>
   );

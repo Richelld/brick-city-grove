@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/current-user";
 import { signInAsResident, signInAsBusiness } from "./actions";
 
-// Login page: residents and business owners both sign in with Google.
+// Login page: residents and business owners pick Google or email.
 export default async function LoginPage() {
   const user = await getCurrentUser();
   if (user?.role === "business") redirect("/dashboard");
@@ -20,35 +21,53 @@ export default async function LoginPage() {
         <LoginCard
           title="Residents"
           text="Explore groves, gatherings and quests, and earn Seeds for shopping local."
-          action={signInAsResident}
+          googleAction={signInAsResident}
+          emailHref="/login/email?as=resident"
           primary
         />
         <LoginCard
           title="Business owners"
           text="Post gatherings, see your foot traffic, and get your weekly summary."
-          action={signInAsBusiness}
+          googleAction={signInAsBusiness}
+          emailHref="/login/email?as=business"
         />
       </div>
     </main>
   );
 }
 
-function LoginCard({ title, text, action, primary }: { title: string; text: string; action: () => Promise<void>; primary?: boolean }) {
+type CardProps = {
+  title: string;
+  text: string;
+  googleAction: () => Promise<void>;
+  emailHref: string; // sign in or create an account without Google
+  primary?: boolean;
+};
+
+function LoginCard({ title, text, googleAction, emailHref, primary }: CardProps) {
   return (
     <section className="flex flex-col gap-4 rounded-3xl border border-bark bg-moss p-6">
       <h2 className="font-display text-2xl font-semibold">{title}</h2>
       <p className="flex-1 text-sage">{text}</p>
-      <form action={action}>
-        <button
-          className={
-            primary
-              ? "w-full rounded-full bg-mint px-6 py-3 font-semibold text-forest hover:opacity-90"
-              : "w-full rounded-full border border-bark px-6 py-3 font-semibold hover:border-mint"
-          }
+      <div className="flex flex-col gap-2">
+        <form action={googleAction}>
+          <button
+            className={
+              primary
+                ? "w-full rounded-full bg-mint px-6 py-3 font-semibold text-forest hover:opacity-90"
+                : "w-full rounded-full border border-bark px-6 py-3 font-semibold hover:border-mint"
+            }
+          >
+            Continue with Google
+          </button>
+        </form>
+        <Link
+          href={emailHref}
+          className="w-full rounded-full border border-bark px-6 py-3 text-center font-semibold hover:border-mint"
         >
-          Continue with Google
-        </button>
-      </form>
+          Continue with email
+        </Link>
+      </div>
     </section>
   );
 }

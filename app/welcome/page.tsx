@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/current-user";
+import { getCurrentUser, isAdmin } from "@/lib/current-user";
 import { getClaimablePlaces } from "@/lib/db";
 import { BUSINESS_CATEGORIES } from "@/lib/categories";
 import { chooseResident, claimBusiness, addNewBusiness } from "../login/actions";
@@ -15,7 +15,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.role === "business") redirect("/dashboard");
-  if (user.role === "resident") redirect("/");
+  if (user.role === "resident") redirect(isAdmin(user) ? "/admin" : "/");
 
   const { as, error } = await searchParams;
   const firstName = user.name?.split(" ")[0];

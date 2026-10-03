@@ -11,9 +11,14 @@ export async function getCurrentUser(): Promise<User | null> {
   return getUserByEmail(email);
 }
 
-// Admins approve businesses. Set ADMIN_EMAILS in .env.local (comma-separated).
+// Admins approve businesses. Someone is an admin if:
+//  - their account has the admin flag (npm run make-admin -- email), or
+//  - they signed in with Google and their email is in ADMIN_EMAILS (Google verified the email).
+// Password accounts never get admin from ADMIN_EMAILS: anyone could sign up with that address.
 export function isAdmin(user: User | null): boolean {
   if (!user) return false;
+  if (user.isAdmin) return true;
+  if (user.hasPassword) return false;
   const admins = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase());
   return admins.includes(user.email.toLowerCase());
 }

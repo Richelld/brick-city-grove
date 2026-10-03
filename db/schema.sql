@@ -73,6 +73,11 @@ alter table users add column if not exists business_phone text;
 alter table users add column if not exists business_website text;
 update users set business_status = 'pending' where role = 'business' and business_status is null;
 
+-- Email/password accounts (null for Google-only accounts). Stores a scrypt hash, never the password.
+alter table users add column if not exists password_hash text;
+-- Admin flag, set with: npm run make-admin -- someone@example.com
+alter table users add column if not exists is_admin boolean not null default false;
+
 -- Time-series table: one row per check-in or purchase at a business.
 -- A hypertable is Tiger Data's version of a table that's fast for time-based data.
 -- This will power the heatmap, business dashboard and "dollars kept local" counter.

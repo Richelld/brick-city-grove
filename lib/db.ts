@@ -142,6 +142,8 @@ export type User = {
   role: "resident" | "business" | null; // null = hasn't picked yet
   placeId: string | null;               // the business they own, if role = business
   businessStatus: "pending" | "approved" | "rejected" | null;
+  isAdmin: boolean;     // set with npm run make-admin
+  hasPassword: boolean; // signed up with email/password (email not verified by Google)
 };
 
 // Called on every Google sign-in: creates the user the first time, updates name/photo after.
@@ -155,7 +157,28 @@ export async function upsertUser(email: string, name: string | null, image: stri
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   const { rows } = await pool.query(
-    `select id, email, name, role, place_id as "placeId", business_status as "businessStatus" from users where email = $1`,
+    `select id, email, name, role, place_id as "placeId", business_status as "businessStatus",
+            is_admin as "isAdmin", (password_hash is not null) as "hasPassword"
+     from users where email = $1`,
+    [email]
+  );
+  return rows[0] ?? null;
+}
+
+// ---- Email/password accounts ----
+
+// Creates a password account. Returns false if the email is already used (Google or password).
+export async function createPasswordUser(email: string, name: string, passwordHash: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `insert into users (email, name, password_hash) values ($1, $2, $3) on conflict (email) do nothing`,
+    [email, name, passwordHash]
+  );
+  return rowCount === 1;
+}
+
+export async function getPasswordUser(email: string): Promise<{ email: string; name: string | null; passwordHash: string } | null> {
+  const { rows } = await pool.query(
+    `select email, name, password_hash as "passwordHash" from users where email = $1 and password_hash is not null`,
     [email]
   );
   return rows[0] ?? null;

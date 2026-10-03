@@ -1,9 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
+import { hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 import {
   becomeResident,
+  createPasswordUser,
   createPendingPlace,
   getClaimablePlaces,
   requestBusinessClaim,
@@ -20,6 +23,41 @@ export async function signInAsResident() {
 
 export async function signInAsBusiness() {
   await signIn("google", { redirectTo: "/welcome?as=business" });
+}
+
+// Email + password sign-in (accounts made on /signup).
+export async function passwordSignIn(formData: FormData) {
+  const type = formData.get("as") === "business" ? "business" : "resident";
+  try {
+    await signIn("password", {
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+      redirectTo: `/welcome?as=${type}`, // sends each person on to their dashboard or home
+    });
+  } catch (error) {
+    if (error instanceof AuthError) redirect(`/login/email?as=${type}&error=password`);
+    throw error; // includes the successful redirect
+  }
+}
+
+// Create an email + password account, sign in, then pick resident/business on /welcome.
+export async function createAccount(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+  const type = formData.get("type") === "business" ? "business" : "resident";
+
+  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) redirect("/signup?error=fields");
+  if (password.length < MIN_PASSWORD_LENGTH) redirect("/signup?error=short");
+  if (password !== confirm) redirect("/signup?error=match");
+
+  // Fails if the email already has an account (including Google accounts), so nobody
+  // can add a password to someone else's account.
+  const created = await createPasswordUser(email, name, await hashPassword(password));
+  if (!created) redirect("/signup?error=taken");
+
+  await signIn("password", { email, password, redirectTo: `/welcome?as=${type}` });
 }
 
 export async function signOutAction() {

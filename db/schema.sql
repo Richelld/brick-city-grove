@@ -47,6 +47,32 @@ create table if not exists resources (
   is_sample boolean not null default true
 );
 
+-- People who signed in with Google. role is null until they pick
+-- "resident" or "business" on the welcome page. Business owners are linked to their place.
+create table if not exists users (
+  id         serial primary key,
+  email      text unique not null,
+  name       text,
+  image      text,
+  role       text check (role in ('resident', 'business')),
+  place_id   text references places(id),
+  created_at timestamptz not null default now()
+);
+
+-- Business verification.
+-- places.status: new businesses added by owners stay 'pending' (hidden) until an admin approves.
+alter table places add column if not exists status text not null default 'approved'
+  check (status in ('pending', 'approved', 'rejected'));
+
+-- users.business_status: a business account can't use the dashboard until it's 'approved'.
+-- The other columns are what the owner gave us so an admin can check them (e.g. call the business).
+alter table users add column if not exists business_status text
+  check (business_status in ('pending', 'approved', 'rejected'));
+alter table users add column if not exists owner_title text;
+alter table users add column if not exists business_phone text;
+alter table users add column if not exists business_website text;
+update users set business_status = 'pending' where role = 'business' and business_status is null;
+
 -- Time-series table: one row per check-in or purchase at a business.
 -- A hypertable is Tiger Data's version of a table that's fast for time-based data.
 -- This will power the heatmap, business dashboard and "dollars kept local" counter.

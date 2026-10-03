@@ -7,7 +7,7 @@
 export type Place = {
   id: string;
   name: string;
-  category: "Cafe" | "Restaurant" | "Bakery" | "Deli";
+  category: string; // see lib/categories.ts
   neighborhood: string;
   address: string | null;
   lat: number | null; // null = no map pin until someone finds the location

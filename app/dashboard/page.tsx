@@ -1,19 +1,29 @@
 import Link from "next/link";
-import { connection } from "next/server";
-import { getDashboardStats, getPlaces } from "@/lib/db";
+import { redirect } from "next/navigation";
+import { getDashboardStats, getPlaceById } from "@/lib/db";
+import { getCurrentUser } from "@/lib/current-user";
 import { publishEvent } from "./actions";
 import { formatHour, percentChange } from "./format";
 import TrafficChart from "./TrafficChart";
 
 const CATEGORIES = ["Food", "Music", "Outdoors", "Shopping", "Career", "Volunteer"];
 
-// Owner dashboard (Clover-style). No login yet, so the owner picks their business
-// from the dropdown. /dashboard?place=p6 opens Teixeira's Bakery.
+// Owner dashboard (Clover-style). Only approved business accounts can use it,
+// and each owner only sees the business linked to their account.
 export default async function Dashboard({ searchParams }: PageProps<"/dashboard">) {
-  await connection();
-  const { place: placeParam, error } = await searchParams;
-  const places = await getPlaces();
-  const place = places.find((p) => p.id === placeParam) ?? places.find((p) => p.id === "p6") ?? places[0];
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "business" || !user.placeId) redirect("/");
+
+  const place = await getPlaceById(user.placeId);
+  if (!place) redirect("/");
+
+  // Not approved yet (or rejected): show the status instead of the dashboard.
+  if (user.businessStatus !== "approved") {
+    return <ReviewStatus placeName={place.name} status={user.businessStatus} />;
+  }
+
+  const { error } = await searchParams;
   const stats = await getDashboardStats(place.id);
 
   const visitsChange = percentChange(stats.visitsThisWeek, stats.visitsLastWeek);
@@ -30,16 +40,6 @@ export default async function Dashboard({ searchParams }: PageProps<"/dashboard"
           <p className="text-sage">{place.neighborhood} · data simulated for demo</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Plain GET form: picking a business reloads the page with ?place=… */}
-          <form className="flex gap-2">
-            <label className="sr-only" htmlFor="place">Business</label>
-            <select id="place" name="place" defaultValue={place.id} className="rounded-full border border-bark bg-moss px-4 py-2 text-sm">
-              {places.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-            <button className="rounded-full border border-bark bg-moss px-4 py-2 text-sm font-semibold hover:border-mint">Switch</button>
-          </form>
           <Link
             href={`/?tab=food&q=${encodeURIComponent(place.name)}#browse`}
             className="rounded-full border border-bark bg-moss px-4 py-2 text-sm font-semibold hover:border-mint"
@@ -98,7 +98,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/dashboard"
           </p>
         )}
 
-        <form action={publishEvent.bind(null, place.id)} className="flex flex-col gap-3">
+        <form action={publishEvent} className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Event title" name="title" placeholder="Pastel de nata tasting" />
             <Field label="Date & time" name="date" placeholder="Sat, 10am" />
@@ -162,5 +162,25 @@ function Field({ label, name, placeholder }: { label: string; name: string; plac
         className="rounded-xl border border-bark bg-forest px-4 py-3 text-base text-mist placeholder:text-sage/70 focus:border-mint focus:outline-none"
       />
     </label>
+  );
+}
+
+function ReviewStatus({ placeName, status }: { placeName: string; status: string | null }) {
+  const rejected = status === "rejected";
+  return (
+    <main className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-12">
+      <p className="text-sm font-semibold uppercase tracking-wide text-sage">Owner dashboard</p>
+      <h1 className="font-display text-4xl font-bold">{placeName}</h1>
+      <section role="status" className="flex flex-col gap-2 rounded-3xl border border-bark bg-moss p-6">
+        <h2 className="font-display text-2xl font-semibold">
+          {rejected ? "We couldn't verify this business" : "Waiting for approval"}
+        </h2>
+        <p className="text-sage">
+          {rejected
+            ? "Your request wasn't approved. If you think this is a mistake, contact the Brick City Grove team."
+            : "Our team will call your business phone number to confirm you run it. Once approved, your dashboard and event posting unlock here."}
+        </p>
+      </section>
+    </main>
   );
 }

@@ -2,11 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { addEvent, getPlaces } from "@/lib/db";
+import { getCurrentUser } from "@/lib/current-user";
 
 // "Post a gathering" form on the owner dashboard.
-// No login yet (hackathon demo), so anyone on the dashboard can post.
-// Add an auth check here once Google sign-in is set up.
-export async function publishEvent(placeId: string, formData: FormData) {
+// Checked on the server: only an approved business can post, and only as their own business.
+export async function publishEvent(formData: FormData) {
+  const user = await getCurrentUser();
+  if (user?.role !== "business" || !user.placeId || user.businessStatus !== "approved") redirect("/login");
+  const placeId = user.placeId;
+
   const title = String(formData.get("title") ?? "").trim();
   const date = String(formData.get("date") ?? "").trim();
   const category = String(formData.get("category") ?? "Food");
@@ -14,7 +18,7 @@ export async function publishEvent(placeId: string, formData: FormData) {
 
   const place = (await getPlaces()).find((p) => p.id === placeId);
   if (!place || !title || !date) {
-    redirect(`/dashboard?place=${placeId}&error=missing`);
+    redirect("/dashboard?error=missing");
   }
 
   await addEvent({ title, date, location: place.name, category, description });

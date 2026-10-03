@@ -8,11 +8,10 @@ export type Tab = "food" | "events" | "jobs";
 
 // Forest name + plain label, so new users and screen readers aren't confused.
 const TABS: { id: Tab; name: string; plain: string }[] = [
-  { id: "food", name: "Groves", plain: "Food & Shops" },
+  { id: "food", name: "Groves", plain: "Local Businesses" },
   { id: "events", name: "Gatherings", plain: "Events" },
   { id: "jobs", name: "Quests", plain: "Jobs" },
 ];
-
 
 type Props = {
   places: Place[];
@@ -25,11 +24,17 @@ type Props = {
 export default function HomeTabs({ places, events, jobs, startTab, startSearch }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>(startTab);
   const [search, setSearch] = useState(startSearch);
+  const [category, setCategory] = useState("All"); // Groves tab only
+
+  // Category buttons: only the kinds of businesses that are actually listed.
+  const categories = ["All", ...Array.from(new Set(places.map((p) => p.category))).sort()];
 
   // Turn whichever list is active into the same card shape.
   let cards;
   if (activeTab === "food") {
-    cards = places.map((p) => ({ id: p.id, title: p.name, subtitle: `${p.category} · ${p.neighborhood}`, detail: p.hours, photo: p.photo, label: p.category, isSample: p.isSample }));
+    cards = places
+      .filter((p) => category === "All" || p.category === category)
+      .map((p) => ({ id: p.id, title: p.name, subtitle: `${p.category} · ${p.neighborhood}`, detail: p.hours, photo: p.photo, label: p.category, isSample: p.isSample }));
   } else if (activeTab === "events") {
     cards = events.map((e) => ({ id: e.id, title: e.title, subtitle: e.date, detail: e.location, photo: e.photo, label: e.category, isSample: e.isSample }));
   } else {
@@ -47,7 +52,7 @@ export default function HomeTabs({ places, events, jobs, startTab, startSearch }
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cafes, events, jobs…"
+          placeholder="Businesses, events, jobs…"
           className="rounded-xl border border-bark bg-moss px-4 py-3 text-base text-mist placeholder:text-sage/70 focus:border-mint focus:outline-none"
         />
       </label>
@@ -70,6 +75,25 @@ export default function HomeTabs({ places, events, jobs, startTab, startSearch }
           </button>
         ))}
       </div>
+
+      {activeTab === "food" && (
+        <div aria-label="Filter by type of business" className="flex flex-wrap gap-2">
+          {categories.map((c) => (
+            <button
+              key={c}
+              aria-pressed={category === c}
+              onClick={() => setCategory(c)}
+              className={
+                category === c
+                  ? "rounded-full border border-mint bg-olive px-3 py-1 text-sm font-semibold"
+                  : "rounded-full border border-bark px-3 py-1 text-sm text-sage hover:border-mint"
+              }
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div role="tabpanel" className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {visible.map((c) => (

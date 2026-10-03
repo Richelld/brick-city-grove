@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* `light:hidden`, `light:bg-white` etc. apply only in the Daytime Glade theme. */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+/* "Moonlit Forest" theme (default). Use these as Tailwind classes, e.g. bg-moss, text-sage, border-bark.
+   Text colors were picked to pass WCAG AA contrast on these backgrounds. */
+@theme {
+  --color-forest: #0e1712; /* page background */
+  --color-moss: #15211a;   /* cards and panels */
+  --color-olive: #262f20;  /* highlight panel (dollars counter) */
+  --color-bark: #2b3b31;   /* borders */
+  --color-mist: #e9f0ea;   /* main text */
+  --color-sage: #a8b8ac;   /* secondary text */
+  --color-mint: #7cc58f;   /* buttons and accents */
+  --color-chart: #4f9d66;  /* chart bars (checked for contrast on moss) */
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces); /* storybook serif, headings only */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* "Daytime Glade" theme: same names, light values. Switched by the theme toggle. */
+[data-theme="light"] {
+  --color-forest: #f4f1e8;
+  --color-moss: #ffffff;
+  --color-olive: #e7eedb;
+  --color-bark: #d5dccd;
+  --color-mist: #15241b;
+  --color-sage: #4b5b50;
+  --color-mint: #2f7a47;
+  --color-chart: #2f7a47;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-forest);
+  color: var(--color-mist);
+  font-family: var(--font-sans), sans-serif;
+}
+
+/* Respect "reduce motion" settings. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }

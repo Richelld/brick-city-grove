@@ -184,6 +184,7 @@ const enUS = {
     error: "Please fill in every required field, including a full 10-digit business phone number.",
     listedTitle: "My business is listed",
     yourBusiness: "Your business *",
+    nothingToClaim: "Every listed business already has an owner. Add yours with the “Add my business” form instead.",
     requestAccess: "Request access",
     addTitle: "Add my business",
     businessName: "Business name *",
@@ -238,6 +239,7 @@ const enUS = {
     rejectedTitle: "We couldn't verify this business",
     pendingTitle: "Waiting for approval",
     rejectedText: "Your request wasn't approved. If you think this is a mistake, contact the Brick City Grove team.",
+    resubmit: "Fix your details and submit again",
     pendingText:
       "Our team will call your business phone number to confirm you run it. Once approved, your dashboard and event posting unlock here.",
   },

@@ -12,7 +12,7 @@ import {
   requestBusinessClaim,
   type ClaimDetails,
 } from "@/lib/db";
-import { getCurrentUser } from "@/lib/current-user";
+import { canSubmitBusiness, getCurrentUser } from "@/lib/current-user";
 import { BUSINESS_CATEGORIES } from "@/lib/categories";
 import { geocode } from "@/lib/geocode";
 
@@ -85,7 +85,7 @@ function readClaimDetails(formData: FormData): ClaimDetails | null {
 export async function claimBusiness(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role) redirect("/dashboard");
+  if (!canSubmitBusiness(user)) redirect("/dashboard");
 
   const details = readClaimDetails(formData);
   const placeId = String(formData.get("place") ?? "");
@@ -100,7 +100,7 @@ export async function claimBusiness(formData: FormData) {
 export async function addNewBusiness(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role) redirect("/dashboard");
+  if (!canSubmitBusiness(user)) redirect("/dashboard");
 
   const details = readClaimDetails(formData);
   const name = String(formData.get("name") ?? "").trim();

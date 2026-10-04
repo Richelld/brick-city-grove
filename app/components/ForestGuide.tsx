@@ -34,8 +34,9 @@ export default function ForestGuide() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t.guide.errorGeneric);
+      // A server crash sends an HTML error page, not JSON; show our own message instead of a parse error.
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.reply !== "string") throw new Error(data.error ?? t.guide.errorGeneric);
       setMessages([...next, { role: "guide", text: data.reply }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : t.guide.errorGeneric);

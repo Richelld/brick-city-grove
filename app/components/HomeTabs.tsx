@@ -41,12 +41,12 @@ export default function HomeTabs({ places, events, jobs, startTab, startSearch }
       .filter((p) => category === ALL || p.category === category)
       .map((p) => {
         const kind = categoryName(t, p.category);
-        return { id: p.id, title: p.name, subtitle: `${kind} · ${p.neighborhood}`, detail: p.hours, photo: p.photo, label: kind, isSample: p.isSample };
+        return { id: p.id, title: p.name, subtitle: `${kind} · ${p.neighborhood}`, detail: p.hours, photo: p.photo, photoIsLogo: p.photoIsLogo, label: kind, isSample: p.isSample };
       });
   } else if (activeTab === "events") {
-    cards = events.map((e) => ({ id: e.id, title: e.title, subtitle: e.date, detail: e.location, photo: e.photo, label: categoryName(t, e.category), isSample: e.isSample }));
+    cards = events.map((e) => ({ id: e.id, title: e.title, subtitle: e.date, detail: e.location, photo: e.photo, photoIsLogo: false, label: categoryName(t, e.category), isSample: e.isSample }));
   } else {
-    cards = jobs.map((j) => ({ id: j.id, title: j.role, subtitle: j.business, detail: `${j.pay} · ${j.shift}`, photo: null, label: t.tabs.job, isSample: j.isSample }));
+    cards = jobs.map((j) => ({ id: j.id, title: j.role, subtitle: j.business, detail: `${j.pay} · ${j.shift}`, photo: j.photo, photoIsLogo: false, label: t.tabs.job, isSample: j.isSample }));
   }
 
   // Simple search: keep cards whose title contains the search text.
@@ -105,7 +105,7 @@ export default function HomeTabs({ places, events, jobs, startTab, startSearch }
 
       <div role="tabpanel" className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {visible.map((c) => (
-          <ListingCard key={c.id} title={c.title} subtitle={c.subtitle} detail={c.detail} photo={c.photo} label={c.label} isSample={c.isSample} sampleLabel={t.tabs.sample} />
+          <ListingCard key={c.id} title={c.title} subtitle={c.subtitle} detail={c.detail} photo={c.photo} photoIsLogo={c.photoIsLogo} label={c.label} isSample={c.isSample} sampleLabel={t.tabs.sample} />
         ))}
       </div>
 

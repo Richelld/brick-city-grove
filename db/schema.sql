@@ -16,6 +16,7 @@ alter table places add column if not exists address text;
 alter table places add column if not exists lat double precision;
 alter table places add column if not exists lng double precision;
 alter table places add column if not exists photo text;
+alter table places add column if not exists photo_is_logo boolean not null default false;
 
 create table if not exists events (
   id        text primary key,
@@ -28,6 +29,7 @@ create table if not exists events (
 
 alter table events add column if not exists photo text;
 alter table events add column if not exists description text;
+alter table jobs add column if not exists photo text;
 
 create table if not exists jobs (
   id        text primary key,

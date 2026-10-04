@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import MapPlaceholder from "./components/MapPlaceholder";
 import MapView from "./components/MapView";
 import HomeTabs, { type Tab } from "./components/HomeTabs";
-import { getPlaces, getEvents, getJobs, getDollarsKeptLocal } from "@/lib/db";
+import { getPlaces, getEvents, getJobs, getDollarsKeptLocal, getHeatmap } from "@/lib/db";
 
 // Resident home screen. This is a server component, so it can read
 // from the database directly and pass the results to HomeTabs.
@@ -14,11 +14,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const startTab: Tab = tab === "events" || tab === "jobs" ? tab : "food";
   const startSearch = typeof q === "string" ? q : "";
 
-  const [places, events, jobs, dollars] = await Promise.all([
+  const [places, events, jobs, dollars, heat] = await Promise.all([
     getPlaces(),
     getEvents(),
     getJobs(),
     getDollarsKeptLocal(),
+    getHeatmap(),
   ]);
 
   return (
@@ -52,7 +53,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </section>
 
       {/* Teammates without an Azure key in .env.local see the placeholder instead. */}
-      {process.env.NEXT_PUBLIC_AZURE_MAPS_KEY ? <MapView places={places} /> : <MapPlaceholder />}
+      {process.env.NEXT_PUBLIC_AZURE_MAPS_KEY ? <MapView places={places} heat={heat} /> : <MapPlaceholder />}
 
       {/* key makes HomeTabs restart on the new tab when a menu link changes the URL */}
       <HomeTabs

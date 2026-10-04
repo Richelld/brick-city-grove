@@ -88,3 +88,18 @@ create table if not exists visits (
 );
 
 select create_hypertable('visits', by_range('time'), if_not_exists => true);
+
+-- Continuous aggregate: visits and spending per place per hour, kept up to date by Tiger Data.
+-- The heatmap reads this instead of scanning every visit.
+-- materialized_only = false also counts visits newer than the last refresh (real-time).
+create materialized view if not exists visits_hourly
+with (timescaledb.continuous, timescaledb.materialized_only = false) as
+  select time_bucket('1 hour', time) as bucket, place_id, count(*) as visits, sum(amount_cents) as amount_cents
+  from visits
+  group by bucket, place_id
+with no data;
+
+-- Refresh the last 30 days every 30 minutes.
+select add_continuous_aggregate_policy('visits_hourly',
+  start_offset => interval '30 days', end_offset => interval '1 hour',
+  schedule_interval => interval '30 minutes', if_not_exists => true);

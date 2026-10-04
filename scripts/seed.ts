@@ -53,8 +53,8 @@ for (const r of resources) {
   );
 }
 
-// Simulated activity (tell judges it's simulated): 1,500 visits per place over the
-// last 4 weeks, each spending $4–$30. Visits cluster around a busy hour per type
+// Simulated activity (tell judges it's simulated): 500–2,500 visits per place over the
+// last 4 weeks (so some places are busier, for the heatmap), each spending $4–$30. Visits cluster around a busy hour per type
 // (cafes/bakeries 8am, delis noon, restaurants 7pm, Newark time). Replaced on every seed.
 console.log("Simulating 4 weeks of visits…");
 await client.query(`delete from visits`);
@@ -66,10 +66,15 @@ await client.query(
            + random() * interval '1 hour') at time zone 'America/New_York',
           p.id,
           (400 + random() * 2600)::int
-   from (select id, case category when 'Restaurant' then 19 when 'Deli' then 12 else 8 end as peak from places) p
-   cross join generate_series(1, 1500)`
+   from (select id, case category when 'Restaurant' then 19 when 'Deli' then 12 else 8 end as peak,
+                (500 + random() * 2000)::int as visit_count
+         from places) p
+   cross join lateral generate_series(1, p.visit_count)`
 );
 await client.query(`delete from visits where time > now()`); // no visits from the future
+
+console.log("Refreshing hourly summary…");
+await client.query(`call refresh_continuous_aggregate('visits_hourly', null, null)`);
 
 await client.end();
 console.log("Done.");

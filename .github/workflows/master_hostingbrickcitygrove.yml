@@ -24,16 +24,28 @@ jobs:
           node-version: '24.x'
 
       - name: npm install, build, and test
+        env:
+          # NEXT_PUBLIC_ values are baked into the site at build time, so the build needs it
+          # (add it under GitHub repo Settings → Secrets and variables → Actions).
+          NEXT_PUBLIC_AZURE_MAPS_KEY: ${{ secrets.NEXT_PUBLIC_AZURE_MAPS_KEY }}
         run: |
           npm install
           npm run build --if-present
           npm run test --if-present
 
+      # The standalone server doesn't include public/ or .next/static, so copy them in, then zip.
+      # Zipping keeps hidden folders like .next, which upload-artifact would otherwise skip.
+      - name: Package standalone server
+        run: |
+          cp -r public .next/standalone/
+          cp -r .next/static .next/standalone/.next/
+          cd .next/standalone && zip -qr ../../release.zip .
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -61,5 +73,5 @@ jobs:
         with:
           app-name: 'hostingBrickCityGrove'
           slot-name: 'Production'
-          package: .
+          package: release.zip
           

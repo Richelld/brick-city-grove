@@ -42,12 +42,22 @@ export default function HomeTabs({ places, events, jobs, startTab, startSearch }
       .filter((p) => category === ALL || p.category === category)
       .map((p) => {
         const kind = categoryName(t, p.category);
-        return { id: p.id, title: p.name, subtitle: `${kind} · ${p.neighborhood}`, detail: p.hours === HOURS_TBD ? t.tabs.hoursTbd : p.hours, photo: p.photo, photoIsLogo: p.photoIsLogo, label: kind, isSample: p.isSample };
+        const hours = p.hours === HOURS_TBD ? t.tabs.hoursTbd : p.hours;
+        // Shown in the panel that slides out when you hover the card.
+        const details = [
+          ...(p.address ? [{ label: t.tabs.address, value: p.address }] : []),
+          { label: t.tabs.neighborhood, value: p.neighborhood },
+          { label: t.tabs.hours, value: hours.replace(/^[^:]+:\s*/, "") },
+        ];
+        return {
+          id: p.id, title: p.name, subtitle: `${kind} · ${p.neighborhood}`, detail: hours, photo: p.photo, photoIsLogo: p.photoIsLogo,
+          label: kind, isSample: p.isSample, description: p.description, details, badge: p.isVerified ? t.tabs.verified : null,
+        };
       });
   } else if (activeTab === "events") {
-    cards = events.map((e) => ({ id: e.id, title: e.title, subtitle: e.date, detail: e.location, photo: e.photo, photoIsLogo: false, label: categoryName(t, e.category), isSample: e.isSample }));
+    cards = events.map((e) => ({ id: e.id, title: e.title, subtitle: e.date, detail: e.location, photo: e.photo, photoIsLogo: false, label: categoryName(t, e.category), isSample: e.isSample, description: e.description, details: [], badge: null }));
   } else {
-    cards = jobs.map((j) => ({ id: j.id, title: j.role, subtitle: j.business, detail: `${j.pay} · ${j.shift}`, photo: j.photo, photoIsLogo: false, label: t.tabs.job, isSample: j.isSample }));
+    cards = jobs.map((j) => ({ id: j.id, title: j.role, subtitle: j.business, detail: `${j.pay} · ${j.shift}`, photo: j.photo, photoIsLogo: false, label: t.tabs.job, isSample: j.isSample, description: j.description, details: [], badge: null }));
   }
 
   // Simple search: keep cards whose title contains the search text.
@@ -106,7 +116,20 @@ export default function HomeTabs({ places, events, jobs, startTab, startSearch }
 
       <div role="tabpanel" className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {visible.map((c) => (
-          <ListingCard key={c.id} title={c.title} subtitle={c.subtitle} detail={c.detail} photo={c.photo} photoIsLogo={c.photoIsLogo} label={c.label} isSample={c.isSample} sampleLabel={t.tabs.sample} />
+          <ListingCard
+            key={c.id}
+            title={c.title}
+            subtitle={c.subtitle}
+            detail={c.detail}
+            photo={c.photo}
+            photoIsLogo={c.photoIsLogo}
+            label={c.label}
+            isSample={c.isSample}
+            sampleLabel={t.tabs.sample}
+            description={c.description}
+            details={c.details}
+            badge={c.badge}
+          />
         ))}
       </div>
 

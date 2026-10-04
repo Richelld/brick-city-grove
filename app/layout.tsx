@@ -4,6 +4,7 @@ import ForestGuide from "./components/ForestGuide";
 import InlineScript from "./components/InlineScript";
 import LanguageProvider from "./components/LanguageProvider";
 import SiteHeader from "./components/SiteHeader";
+import StoneWall from "./components/StoneWall";
 import { getDictionary } from "@/lib/i18n/server";
 import "./globals.css";
 
@@ -47,6 +48,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <StoneWall />
         <LanguageProvider locale={locale}>
           <SiteHeader />
           {children}

@@ -79,7 +79,9 @@ async function buildInstructions(t: Dictionary): Promise<string> {
   });
 
   const placeLines = places.map(
-    (p) => `- ${p.name} (${p.category}, ${p.neighborhood}${p.address ? `, ${p.address}` : ""}). Hours: ${p.hours}`
+    (p) =>
+      `- ${p.name} (${p.category}, ${p.neighborhood}${p.address ? `, ${p.address}` : ""}). Hours: ${p.hours}` +
+      (p.description ? ` About (written by the owner): ${p.description}` : "")
   );
   const eventLines = events.map((e) => `- ${e.title} (${e.category}) on ${e.date} at ${e.location}`);
   const resourceLines = resources.map((r) => `- ${r.name} (${r.kind}, ${r.location}): ${r.detail}`);

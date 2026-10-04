@@ -40,6 +40,7 @@ create table if not exists jobs (
 );
 
 alter table jobs add column if not exists photo text;
+alter table jobs add column if not exists description text;
 
 create table if not exists resources (
   id        text primary key,
@@ -80,6 +81,18 @@ update users set business_status = 'pending' where role = 'business' and busines
 alter table users add column if not exists password_hash text;
 -- Admin flag, set with: npm run make-admin -- someone@example.com
 alter table users add column if not exists is_admin boolean not null default false;
+
+-- What owners write about their business (shown on the card). Gemini can help draft it.
+alter table places add column if not exists description text;
+
+-- Photos uploaded by business owners. Kept in the database (not on disk) because the
+-- Azure web server's files are replaced on every deploy. Served by app/api/photos.
+create table if not exists place_photos (
+  place_id     text primary key references places(id) on delete cascade,
+  content_type text not null,
+  data         bytea not null,
+  updated_at   timestamptz not null default now()
+);
 
 -- Time-series table: one row per check-in or purchase at a business.
 -- A hypertable is Tiger Data's version of a table that's fast for time-based data.

@@ -13,7 +13,8 @@ globalForDb.pool = pool;
 // Only approved businesses are public; pending ones wait for an admin.
 export async function getPlaces(): Promise<Place[]> {
   const { rows } = await pool.query(
-    `select id, name, category, neighborhood, address, lat, lng, hours, photo, photo_is_logo as "photoIsLogo", is_sample as "isSample"
+    `select id, name, category, neighborhood, address, lat, lng, hours, photo, photo_is_logo as "photoIsLogo", is_sample as "isSample", description,
+            exists (select 1 from users u where u.place_id = places.id and u.business_status = 'approved') as "isVerified"
      from places where status = 'approved' order by name`
   );
   return rows;
@@ -22,7 +23,8 @@ export async function getPlaces(): Promise<Place[]> {
 // Any place by id, including pending ones (for the owner's own status page).
 export async function getPlaceById(id: string): Promise<Place | null> {
   const { rows } = await pool.query(
-    `select id, name, category, neighborhood, address, lat, lng, hours, photo, photo_is_logo as "photoIsLogo", is_sample as "isSample"
+    `select id, name, category, neighborhood, address, lat, lng, hours, photo, photo_is_logo as "photoIsLogo", is_sample as "isSample", description,
+            exists (select 1 from users u where u.place_id = places.id and u.business_status = 'approved') as "isVerified"
      from places where id = $1`,
     [id]
   );
@@ -31,14 +33,14 @@ export async function getPlaceById(id: string): Promise<Place | null> {
 
 export async function getEvents(): Promise<GroveEvent[]> {
   const { rows } = await pool.query(
-    `select id, title, date, location, category, photo, is_sample as "isSample" from events order by id`
+    `select id, title, date, location, category, photo, description, is_sample as "isSample" from events order by id`
   );
   return rows;
 }
 
 export async function getJobs(): Promise<Job[]> {
   const { rows } = await pool.query(
-    `select id, role, business, pay, shift, photo, is_sample as "isSample" from jobs order by id`
+    `select id, role, business, pay, shift, photo, description, is_sample as "isSample" from jobs order by id`
   );
   return rows;
 }
@@ -227,14 +229,11 @@ export async function becomeResident(email: string) {
 
 export type ClaimDetails = { ownerTitle: string; phone: string; website: string };
 
-// Approved businesses that don't have an approved owner yet (can be claimed).
+// Businesses someone can ask to join from "My business is listed": every approved business,
+// including ones owners added themselves. A business can have several people (owner,
+// co-owner, manager); each request is still checked by an admin before it's approved.
 export async function getClaimablePlaces(): Promise<Place[]> {
-  const places = await getPlaces();
-  const { rows } = await pool.query(
-    `select place_id from users where business_status = 'approved' and place_id is not null`
-  );
-  const owned = new Set(rows.map((r) => r.place_id));
-  return places.filter((p) => !owned.has(p.id));
+  return getPlaces();
 }
 
 // Owner asks to manage an existing listing. Stays pending until an admin approves.
@@ -251,14 +250,40 @@ export async function requestBusinessClaim(email: string, placeId: string, d: Cl
 // Owner adds a business that isn't listed yet. The place is hidden until approved.
 export async function createPendingPlace(p: {
   name: string; category: string; neighborhood: string; address: string; lat: number | null; lng: number | null;
+  description: string | null;
 }): Promise<string> {
   const id = `b-${Date.now()}`;
   await pool.query(
-    `insert into places (id, name, category, neighborhood, address, lat, lng, hours, photo, is_sample, status)
-     values ($1, $2, $3, $4, $5, $6, $7, 'Hours: TBD', null, false, 'pending')`,
-    [id, p.name, p.category, p.neighborhood, p.address, p.lat, p.lng]
+    `insert into places (id, name, category, neighborhood, address, lat, lng, hours, photo, is_sample, status, description)
+     values ($1, $2, $3, $4, $5, $6, $7, 'Hours: TBD', null, false, 'pending', $8)`,
+    [id, p.name, p.category, p.neighborhood, p.address, p.lat, p.lng, p.description]
   );
   return id;
+}
+
+// ---- Photos uploaded by owners (stored in the database, served by app/api/photos) ----
+
+// Saves the photo and points the business's card at it. The number at the end of the
+// address changes with every upload, so browsers never show an old cached photo.
+export async function savePlacePhoto(placeId: string, contentType: string, data: Buffer) {
+  await pool.query(
+    `insert into place_photos (place_id, content_type, data, updated_at) values ($1, $2, $3, now())
+     on conflict (place_id) do update set content_type = $2, data = $3, updated_at = now()`,
+    [placeId, contentType, data]
+  );
+  await pool.query(`update places set photo = $2, photo_is_logo = false where id = $1`, [
+    placeId,
+    `/api/photos/${placeId}/${Date.now()}`,
+  ]);
+}
+
+export async function getPlacePhoto(placeId: string): Promise<{ contentType: string; data: Buffer; placeStatus: string } | null> {
+  const { rows } = await pool.query(
+    `select pp.content_type as "contentType", pp.data, p.status as "placeStatus"
+     from place_photos pp join places p on p.id = pp.place_id where pp.place_id = $1`,
+    [placeId]
+  );
+  return rows[0] ?? null;
 }
 
 export type BusinessRequest = {
@@ -273,8 +298,11 @@ export type BusinessRequest = {
   placeName: string;
   placeCategory: string;
   placeAddress: string | null;
+  placeDescription: string | null;
+  placePhoto: string | null;
   isNewPlace: boolean;     // the owner added this business themselves
-  alreadyOwned: boolean;   // someone else is already the approved owner
+  alreadyOwned: boolean;   // someone else is already approved for this business
+  existingMembers: string | null; // their emails, so the admin can check this person works there too
 };
 
 // Everything the admin page needs, newest first.
@@ -283,9 +311,12 @@ export async function getBusinessRequests(): Promise<BusinessRequest[]> {
     `select u.id as "userId", u.name, u.email, u.owner_title as "ownerTitle", u.business_phone as phone,
             u.business_website as website, u.business_status as status,
             p.id as "placeId", p.name as "placeName", p.category as "placeCategory", p.address as "placeAddress",
+            p.description as "placeDescription", p.photo as "placePhoto",
             (p.status <> 'approved') as "isNewPlace",
             exists (select 1 from users o where o.place_id = u.place_id and o.business_status = 'approved'
-                    and o.id <> u.id) as "alreadyOwned"
+                    and o.id <> u.id) as "alreadyOwned",
+            (select string_agg(o.email, ', ') from users o where o.place_id = u.place_id
+               and o.business_status = 'approved' and o.id <> u.id) as "existingMembers"
      from users u join places p on p.id = u.place_id
      where u.role = 'business'
      order by (u.business_status = 'pending') desc, u.created_at desc`

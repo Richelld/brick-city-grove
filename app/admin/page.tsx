@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getBusinessRequests, type BusinessRequest } from "@/lib/db";
 import { getCurrentUser, isAdmin } from "@/lib/current-user";
@@ -54,7 +55,19 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 function RequestCard({ t, request: r }: { t: Dictionary; request: BusinessRequest }) {
   return (
     <article className="flex flex-col gap-3 rounded-2xl border border-bark bg-moss p-5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-col gap-1">
+      {/* What will appear on their public card, so it can be checked before approving.
+          unoptimized: the browser loads it directly, with the admin's sign-in, since it isn't public yet. */}
+      {r.placePhoto && (
+        <Image
+          src={r.placePhoto}
+          alt={fill(t.admin.photoAlt, { name: r.placeName })}
+          width={96}
+          height={96}
+          unoptimized
+          className="h-24 w-24 shrink-0 rounded-xl object-cover"
+        />
+      )}
+      <div className="flex flex-1 flex-col gap-1">
         <p className="font-display text-xl font-semibold">
           {r.placeName}
           <span className="ml-2 rounded-full bg-olive px-2 py-0.5 align-middle font-sans text-xs font-normal text-sage">
@@ -72,8 +85,11 @@ function RequestCard({ t, request: r }: { t: Dictionary; request: BusinessReques
           {t.admin.phone} <strong>{r.phone ?? "—"}</strong>
           {r.website ? ` · ${r.website}` : ""}
         </p>
+        <p className="text-sm">
+          <span className="text-sage">{t.admin.description}</span> {r.placeDescription ?? t.admin.noDescription}
+        </p>
         {r.alreadyOwned && (
-          <p className="text-sm font-semibold">{t.admin.alreadyOwned}</p>
+          <p className="text-sm font-semibold">{fill(t.admin.alreadyOwned, { emails: r.existingMembers ?? "" })}</p>
         )}
       </div>
 
@@ -81,7 +97,6 @@ function RequestCard({ t, request: r }: { t: Dictionary; request: BusinessReques
         <div className="flex gap-2">
           <form action={approve.bind(null, r.userId)}>
             <button
-              disabled={r.alreadyOwned}
               className="rounded-full bg-mint px-5 py-2 font-semibold text-forest hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t.admin.approve}

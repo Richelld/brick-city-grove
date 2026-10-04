@@ -13,9 +13,10 @@ async function requireAdmin() {
 
 export async function approve(userId: number) {
   await requireAdmin();
-  // Never approve a second owner for a business that already has one.
+  // A business can have several people (owner, co-owner, manager). If someone is already
+  // approved, the admin page shows who, so the admin can check this person works there too.
   const request = (await getBusinessRequests()).find((r) => r.userId === userId);
-  if (!request || request.alreadyOwned) redirect("/admin?error=owned");
+  if (!request) redirect("/admin");
   await approveBusiness(userId);
   revalidatePath("/admin");
 }

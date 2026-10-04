@@ -15,31 +15,35 @@ await client.query(readFileSync("db/schema.sql", "utf8"));
 console.log(`Seeding ${places.length} places…`);
 for (const p of places) {
   await client.query(
-    `insert into places (id, name, category, neighborhood, address, lat, lng, hours, photo, photo_is_logo, is_sample)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    // coalesce keeps a description the owner already wrote; ours only fills an empty one.
+    `insert into places (id, name, category, neighborhood, address, lat, lng, hours, photo, photo_is_logo, is_sample, description)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      on conflict (id) do update set name = $2, category = $3, neighborhood = $4, address = $5,
-       lat = $6, lng = $7, hours = $8, photo = $9, photo_is_logo = $10, is_sample = $11`,
-    [p.id, p.name, p.category, p.neighborhood, p.address, p.lat, p.lng, p.hours, p.photo, p.photoIsLogo, p.isSample]
+       lat = $6, lng = $7, hours = $8, photo = $9, photo_is_logo = $10, is_sample = $11,
+       description = coalesce(places.description, $12)`,
+    [p.id, p.name, p.category, p.neighborhood, p.address, p.lat, p.lng, p.hours, p.photo, p.photoIsLogo, p.isSample, p.description ?? null]
   );
 }
 
 console.log(`Seeding ${events.length} events…`);
 for (const e of events) {
   await client.query(
-    `insert into events (id, title, date, location, category, photo, is_sample)
-     values ($1, $2, $3, $4, $5, $6, $7)
-     on conflict (id) do update set title = $2, date = $3, location = $4, category = $5, photo = $6, is_sample = $7`,
-    [e.id, e.title, e.date, e.location, e.category, e.photo, e.isSample]
+    `insert into events (id, title, date, location, category, photo, is_sample, description)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
+     on conflict (id) do update set title = $2, date = $3, location = $4, category = $5, photo = $6, is_sample = $7,
+       description = coalesce(events.description, $8)`,
+    [e.id, e.title, e.date, e.location, e.category, e.photo, e.isSample, e.description ?? null]
   );
 }
 
 console.log(`Seeding ${jobs.length} jobs…`);
 for (const j of jobs) {
   await client.query(
-    `insert into jobs (id, role, business, pay, shift, photo, is_sample)
-     values ($1, $2, $3, $4, $5, $6, $7)
-     on conflict (id) do update set role = $2, business = $3, pay = $4, shift = $5, photo = $6, is_sample = $7`,
-    [j.id, j.role, j.business, j.pay, j.shift, j.photo, j.isSample]
+    `insert into jobs (id, role, business, pay, shift, photo, is_sample, description)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
+     on conflict (id) do update set role = $2, business = $3, pay = $4, shift = $5, photo = $6, is_sample = $7,
+       description = coalesce(jobs.description, $8)`,
+    [j.id, j.role, j.business, j.pay, j.shift, j.photo, j.isSample, j.description ?? null]
   );
 }
 

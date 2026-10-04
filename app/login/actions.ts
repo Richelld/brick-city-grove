@@ -10,11 +10,14 @@ import {
   createPendingPlace,
   getClaimablePlaces,
   requestBusinessClaim,
+  savePlacePhoto,
   type ClaimDetails,
 } from "@/lib/db";
 import { canSubmitBusiness, getCurrentUser } from "@/lib/current-user";
 import { BUSINESS_CATEGORIES } from "@/lib/categories";
 import { geocode } from "@/lib/geocode";
+import { readPhoto } from "@/lib/photos";
+import { MAX_DESCRIPTION_CHARS } from "@/lib/business-form";
 
 // Login page buttons: send the person to Google, then to /welcome to finish setup.
 export async function signInAsResident() {
@@ -96,23 +99,55 @@ export async function claimBusiness(formData: FormData) {
   redirect("/dashboard"); // shows "waiting for approval"
 }
 
-// "My business isn't listed": add it. Hidden from the public until an admin approves.
-export async function addNewBusiness(formData: FormData) {
+// What the "Add my business" form gets back when something needs fixing:
+// which fields are wrong, plus what was typed so the form can be refilled.
+export type AddBusinessState = {
+  errors: ("name" | "category" | "address" | "ownerTitle" | "phone" | "photo")[];
+  values: Record<string, string>;
+} | null;
+
+// "My business isn't listed": add it, with an optional photo and description.
+// Hidden from the public until an admin approves.
+export async function addNewBusiness(_previous: AddBusinessState, formData: FormData): Promise<AddBusinessState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!canSubmitBusiness(user)) redirect("/dashboard");
 
-  const details = readClaimDetails(formData);
-  const name = String(formData.get("name") ?? "").trim();
-  const category = String(formData.get("category") ?? "");
-  const address = String(formData.get("address") ?? "").trim();
-  const neighborhood = String(formData.get("neighborhood") ?? "").trim() || "Newark";
-  if (!details || !name || !address || !BUSINESS_CATEGORIES.includes(category)) {
-    redirect("/welcome?as=business&error=new");
+  const field = (key: string) => String(formData.get(key) ?? "").trim();
+  const values = Object.fromEntries(
+    ["name", "category", "address", "neighborhood", "description", "ownerTitle", "phone", "website"].map((k) => [k, field(k)])
+  );
+
+  // Check every field, so the form can point at exactly what's wrong.
+  const errors: NonNullable<AddBusinessState>["errors"] = [];
+  if (!values.name) errors.push("name");
+  if (!BUSINESS_CATEGORIES.includes(values.category)) errors.push("category");
+  if (!values.address) errors.push("address");
+  if (!values.ownerTitle) errors.push("ownerTitle");
+  if (values.phone.replace(/\D/g, "").length < 10) errors.push("phone"); // need a full phone number
+  const photo = await readPhoto(formData.get("photo")); // null if they didn't add one
+  if (photo === "invalid") errors.push("photo");
+
+  if (errors.length > 0) {
+    console.warn("Add business form rejected:", errors.join(", ")); // field names only, no personal data
+    return { errors, values };
   }
 
-  const { lat, lng } = await geocode(address); // for the map pin
-  const placeId = await createPendingPlace({ name, category, neighborhood, address, lat, lng });
-  await requestBusinessClaim(user.email, placeId, details);
+  const { lat, lng } = await geocode(values.address); // for the map pin
+  const placeId = await createPendingPlace({
+    name: values.name,
+    category: values.category,
+    neighborhood: values.neighborhood || "Newark",
+    address: values.address,
+    lat,
+    lng,
+    description: values.description.slice(0, MAX_DESCRIPTION_CHARS) || null,
+  });
+  if (photo && photo !== "invalid") await savePlacePhoto(placeId, photo.contentType, photo.data);
+  await requestBusinessClaim(user.email, placeId, {
+    ownerTitle: values.ownerTitle,
+    phone: values.phone,
+    website: values.website,
+  });
   redirect("/dashboard");
 }

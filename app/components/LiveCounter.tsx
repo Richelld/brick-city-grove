@@ -1,6 +1,7 @@
 "use client"; // Checks for new purchases in the browser and animates the number.
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "./LanguageProvider";
 
 const CHECK_EVERY_MS = 5_000;
 const COUNT_UP_MS = 1_200;
@@ -8,6 +9,7 @@ const COUNT_UP_MS = 1_200;
 // "Dollars kept local this week". Starts with the number the server rendered, then checks
 // /api/dollars every few seconds and counts up when new purchases come in (e.g. npm run demo:live).
 export default function LiveCounter({ initialDollars }: { initialDollars: number }) {
+  const { locale } = useTranslation();
   const [shown, setShown] = useState(initialDollars); // what's on screen, mid-animation
   const [gain, setGain] = useState<number | null>(null); // "+$12" badge after an increase
   const latest = useRef(initialDollars);
@@ -57,10 +59,10 @@ export default function LiveCounter({ initialDollars }: { initialDollars: number
 
   return (
     <p className="flex flex-wrap items-baseline gap-3">
-      <span className="font-display text-5xl font-bold tabular-nums">${shown.toLocaleString("en-US")}</span>
+      <span className="font-display text-5xl font-bold tabular-nums">${shown.toLocaleString(locale)}</span>
       {gain !== null && (
         <span className="rounded-full bg-mint px-3 py-1 text-sm font-semibold text-forest">
-          +${gain.toLocaleString("en-US")}
+          +${gain.toLocaleString(locale)}
         </span>
       )}
     </p>

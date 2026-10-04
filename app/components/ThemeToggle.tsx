@@ -1,8 +1,12 @@
 "use client"; // Clicking changes the page theme in the browser.
 
+import { useTranslation } from "./LanguageProvider";
+
 // Switches between Moonlit Forest (dark) and Daytime Glade (light).
 // The choice is saved in localStorage; app/layout.tsx re-applies it before the page paints.
 export default function ThemeToggle() {
+  const { t } = useTranslation();
+
   function toggle() {
     const root = document.documentElement;
     const next = root.dataset.theme === "light" ? "dark" : "light";
@@ -19,8 +23,8 @@ export default function ThemeToggle() {
       onClick={toggle}
       className="rounded-full border border-bark bg-moss px-4 py-2 text-sm font-semibold hover:border-mint"
     >
-      <span className="light:hidden">Daytime Glade</span>
-      <span className="hidden light:inline">Moonlit Forest</span>
+      <span className="light:hidden">{t.theme.toDay}</span>
+      <span className="hidden light:inline">{t.theme.toNight}</span>
     </button>
   );
 }

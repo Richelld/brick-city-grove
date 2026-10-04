@@ -1,8 +1,12 @@
+import { fill } from "@/lib/i18n";
+import { getDictionary } from "@/lib/i18n/server";
 import { formatHour } from "./format";
 
 // Bar chart of average weekday visits per hour, built from plain divs (no chart library).
 // Hover or keyboard-focus a bar to see its number. A hidden table gives screen readers the data.
-export default function TrafficChart({ data }: { data: { hour: number; avg: number }[] }) {
+export default async function TrafficChart({ data }: { data: { hour: number; avg: number }[] }) {
+  const { locale, t } = await getDictionary();
+
   // Show every hour from 6am to 10pm, even ones with no visits.
   const hours = Array.from({ length: 17 }, (_, i) => i + 6);
   const byHour = new Map(data.map((d) => [d.hour, d.avg]));
@@ -13,7 +17,7 @@ export default function TrafficChart({ data }: { data: { hour: number; avg: numb
       <div className="relative flex h-56 items-end gap-0.5 border-b border-bark pt-6" aria-hidden="true">
         {/* One faint gridline at the top value */}
         <div className="absolute inset-x-0 top-6 border-t border-dashed border-bark" />
-        <span className="absolute left-0 top-0 text-xs text-sage">{max} visits</span>
+        <span className="absolute left-0 top-0 text-xs text-sage">{fill(t.chart.maxVisits, { count: max })}</span>
 
         {hours.map((hour) => {
           const avg = byHour.get(hour) ?? 0;
@@ -24,7 +28,7 @@ export default function TrafficChart({ data }: { data: { hour: number; avg: numb
                 style={{ height: `${(avg / max) * 100}%` }}
               />
               <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-bark bg-forest px-2 py-1 text-xs opacity-0 group-hover:opacity-100 group-focus:opacity-100">
-                {formatHour(hour)} · {avg} visits
+                {fill(t.chart.tooltip, { hour: formatHour(hour, locale), count: avg })}
               </span>
             </div>
           );
@@ -35,17 +39,17 @@ export default function TrafficChart({ data }: { data: { hour: number; avg: numb
       <div className="flex gap-0.5 text-xs text-sage" aria-hidden="true">
         {hours.map((hour) => (
           <span key={hour} className="flex-1 text-center">
-            {hour % 3 === 0 ? formatHour(hour) : ""}
+            {hour % 3 === 0 ? formatHour(hour, locale) : ""}
           </span>
         ))}
       </div>
 
       <table className="sr-only">
-        <caption>Average weekday visits by hour</caption>
+        <caption>{t.chart.caption}</caption>
         <tbody>
           {hours.map((hour) => (
             <tr key={hour}>
-              <th scope="row">{formatHour(hour)}</th>
+              <th scope="row">{formatHour(hour, locale)}</th>
               <td>{byHour.get(hour) ?? 0}</td>
             </tr>
           ))}

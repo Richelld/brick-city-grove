@@ -1,6 +1,6 @@
 "use client"; // Maps need the browser (window, canvas), so this runs client-side.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import "azure-maps-control/dist/atlas.min.css";
 import type { Place } from "@/lib/fake-data";
 import type { HeatPoint } from "@/lib/db";
@@ -16,25 +16,71 @@ function mapStyle() {
   return document.documentElement.dataset.theme === "light" ? "road" : "night";
 }
 
-// 0 → "12 AM", 13 → "1 PM"
-function hourLabel(hour: number) {
-  return `${hour % 12 === 0 ? 12 : hour % 12} ${hour < 12 ? "AM" : "PM"}`;
+// The current minute, updated every 30 seconds so the map moves with the clock.
+// On the server there's no "now" yet (null), which avoids a hydration mismatch.
+function useMinute() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const timer = setInterval(onChange, 30_000);
+      return () => clearInterval(timer);
+    },
+    () => Math.floor(Date.now() / 60_000),
+    () => null
+  );
 }
 
-const sum = (nums: number[]) => nums.reduce((a, b) => a + b, 0);
+// Weekday and hour in Newark, whatever time zone the visitor's device is in.
+function newarkTime(minute: number) {
+  const date = new Date(minute * 60_000);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const weekday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(parts.find((p) => p.type === "weekday")!.value);
+  const hour = Number(parts.find((p) => p.type === "hour")!.value);
+  const label = date.toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", hour: "numeric", minute: "2-digit" });
+  return { weekHour: weekday * 24 + hour, label };
+}
 
-type Atlas = typeof import("azure-maps-control");
+// How busy a place is now, compared with its own busiest hour of the week.
+function busyLabel(now: number, peak: number) {
+  if (now === 0 || peak === 0) return "Usually quiet now";
+  const ratio = now / peak;
+  if (ratio >= 0.66) return "Busy right now";
+  if (ratio >= 0.33) return "A little busy";
+  return "Not too busy";
+}
+
+// All visits to a place over the 4 weeks: each hour's weekly average, times 4 weeks.
+function totalVisits(point: HeatPoint) {
+  return point.byWeekHour.reduce((a, b) => a + b, 0) * 4;
+}
+
+// What a pin shows when clicked: name, address, and how busy it is.
+function popupContent(place: Place, busy: string) {
+  const label = document.createElement("div");
+  label.className = "px-3 py-2 text-sm text-stone-900";
+  label.textContent = `${place.name} · ${place.address}`;
+  if (busy) {
+    const line = document.createElement("div");
+    line.className = "font-semibold";
+    line.textContent = busy;
+    label.append(line);
+  }
+  return label;
+}
 
 export default function MapView({ places, heat }: { places: Place[]; heat: HeatPoint[] }) {
   const mapDiv = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<"pins" | "heat">("pins");
-  const [hour, setHour] = useState<number | null>(null); // null = all day
   const [ready, setReady] = useState(false);
+  const minute = useMinute();
 
-  // Things the map creates once, which the controls below update.
-  const atlasRef = useRef<Atlas | null>(null);
-  const pinsRef = useRef<import("azure-maps-control").HtmlMarker[]>([]);
-  const heatSourceRef = useRef<import("azure-maps-control").source.DataSource | null>(null);
+  // Things the map creates once, which the effect below updates.
+  type Pin = { place: Place; pin: import("azure-maps-control").HtmlMarker; popup: import("azure-maps-control").Popup };
+  const pinsRef = useRef(new Map<string, Pin>());
   const heatLayerRef = useRef<import("azure-maps-control").layer.HeatMapLayer | null>(null);
 
   useEffect(() => {
@@ -44,7 +90,6 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
     // Load the map library only in the browser.
     import("azure-maps-control").then((atlas) => {
       if (cancelled || !mapDiv.current) return;
-      atlasRef.current = atlas;
 
       map = new atlas.Map(mapDiv.current, {
         center: NEWARK,
@@ -57,30 +102,20 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
       });
 
       map.events.add("ready", () => {
-        // One pin per business that has coordinates. Clicking a pin shows its name.
-        pinsRef.current = [];
-        for (const place of places) {
-          if (place.lat === null || place.lng === null) continue;
-
-          const label = document.createElement("div");
-          label.className = "px-3 py-2 text-sm text-stone-900";
-          label.textContent = `${place.name} · ${place.address}`;
-
-          const popup = new atlas.Popup({ content: label, pixelOffset: [0, -30] });
-          const pin = new atlas.HtmlMarker({ position: [place.lng, place.lat], color: "#7cc58f", popup });
-
-          map!.markers.add(pin);
-          map!.events.add("click", pin, () => pin.togglePopup());
-          pinsRef.current.push(pin);
-        }
-
-        // Heatmap of visits. Each point's "weight" (0–1) is set by the controls below.
-        // The radius grows as you zoom in so blobs cover the same streets at every zoom.
+        // Heatmap of the places people visit most. Each point's weight (0–1) is its visits
+        // compared with the most-visited place. The radius grows as you zoom in so blobs
+        // cover the same streets at every zoom. Hidden until the Heatmap tab is picked.
+        const mostVisits = Math.max(0, ...heat.map(totalVisits));
         const source = new atlas.source.DataSource();
+        source.add(
+          heat.map(
+            (p) => new atlas.data.Feature(new atlas.data.Point([p.lng, p.lat]), { weight: mostVisits > 0 ? totalVisits(p) / mostVisits : 0 })
+          )
+        );
         const layer = new atlas.layer.HeatMapLayer(source, "visits-heat", {
           weight: ["get", "weight"],
-          radius: ["interpolate", ["exponential", 2], ["zoom"], 10, 20, 15, 200, 18, 1200],
-          intensity: 1.5,
+          radius: ["interpolate", ["exponential", 2], ["zoom"], 10, 25, 15, 250, 18, 1500],
+          intensity: 3,
           opacity: 0.85,
           color: [
             "interpolate", ["linear"], ["heatmap-density"],
@@ -94,8 +129,20 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
         });
         map!.sources.add(source);
         map!.layers.add(layer, "labels"); // under street names so they stay readable
-        heatSourceRef.current = source;
         heatLayerRef.current = layer;
+
+        // One pin per business that has coordinates. Clicking a pin shows its name and how busy it is.
+        pinsRef.current.clear();
+        for (const place of places) {
+          if (place.lat === null || place.lng === null) continue;
+
+          const popup = new atlas.Popup({ content: popupContent(place, ""), pixelOffset: [0, -30] });
+          const pin = new atlas.HtmlMarker({ position: [place.lng, place.lat], color: "#7cc58f", popup });
+          pinsRef.current.set(place.id, { place, pin, popup });
+
+          map!.markers.add(pin);
+          map!.events.add("click", pin, () => pin.togglePopup());
+        }
 
         // Zoom so every pin fits on screen.
         const positions = places.filter((p) => p.lat !== null && p.lng !== null).map((p) => [p.lng!, p.lat!]);
@@ -117,93 +164,103 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
       window.removeEventListener("themechange", onThemeChange);
       map?.dispose();
     };
-  }, [places]);
+  }, [places, heat]);
 
-  // Show pins or heatmap, and redraw the heatmap for the chosen hour.
+  const now = minute === null ? null : newarkTime(minute);
+  const weekHour = now?.weekHour ?? null;
+
+  // Switch between pins and heatmap.
   useEffect(() => {
-    const atlas = atlasRef.current;
-    const source = heatSourceRef.current;
-    if (!ready || !atlas || !source) return;
-
-    for (const pin of pinsRef.current) pin.setOptions({ visible: view === "pins" });
+    if (!ready) return;
     heatLayerRef.current?.setOptions({ visible: view === "heat" });
+    for (const { pin, popup } of pinsRef.current.values()) {
+      pin.setOptions({ visible: view === "pins" });
+      if (view === "heat") popup.close();
+    }
+  }, [ready, view]);
 
-    // Scale against the busiest value anywhere, so a quiet hour looks quiet.
-    const value = (p: HeatPoint) => (hour === null ? sum(p.byHour) : p.byHour[hour]);
-    const max = hour === null ? Math.max(0, ...heat.map((p) => sum(p.byHour))) : Math.max(0, ...heat.flatMap((p) => p.byHour));
+  // Update each pin's "Busy right now" line when the hour changes.
+  useEffect(() => {
+    if (!ready || weekHour === null) return;
+    for (const [placeId, { place, popup }] of pinsRef.current) {
+      const point = heat.find((p) => p.placeId === placeId);
+      const busy = point ? busyLabel(point.byWeekHour[weekHour], Math.max(...point.byWeekHour)) : "";
+      popup.setOptions({ content: popupContent(place, busy) });
+    }
+  }, [ready, weekHour, heat]);
 
-    source.setShapes(
-      heat.map((p) => new atlas.data.Feature(new atlas.data.Point([p.lng, p.lat]), { weight: max > 0 ? value(p) / max : 0 }))
-    );
-  }, [ready, view, hour, heat]);
+  const nameOf = (point: HeatPoint | null) => (point ? places.find((p) => p.id === point.placeId)?.name : null);
 
-  const totalVisits = Math.round(sum(heat.map((p) => (hour === null ? sum(p.byHour) : p.byHour[hour]))));
+  // The most-visited place overall, for the Heatmap tab.
+  const mostVisited = heat.reduce<HeatPoint | null>((best, p) => (totalVisits(p) > (best ? totalVisits(best) : 0) ? p : best), null);
+
+  // The busiest place right now, for the Pins tab.
+  const busiest =
+    weekHour === null
+      ? null
+      : heat.reduce<HeatPoint | null>(
+          (best, p) => (p.byWeekHour[weekHour] > (best?.byWeekHour[weekHour] ?? 0) ? p : best),
+          null
+        );
 
   return (
     <section className="flex flex-col gap-3" aria-label="Map of local businesses in Newark">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex rounded-full border border-bark p-1" role="group" aria-label="Map view">
-          {(["pins", "heat"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              aria-pressed={view === v}
-              className={`rounded-full px-4 py-1.5 text-sm font-semibold ${view === v ? "bg-mint text-forest" : "hover:text-mint"}`}
-            >
-              {v === "pins" ? "Pins · Businesses" : "Heatmap · Foot traffic"}
-            </button>
-          ))}
-        </div>
-
-        {view === "heat" && (
-          <p className="text-sm text-sage">
-            {hour === null ? "All day" : `Around ${hourLabel(hour)}`}: about {totalVisits.toLocaleString("en-US")} visits a day
-          </p>
-        )}
+      <div className="flex w-fit rounded-full border border-bark p-1" role="group" aria-label="Map view">
+        {(["pins", "heat"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            aria-pressed={view === v}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${view === v ? "bg-mint text-forest" : "hover:text-mint"}`}
+          >
+            {v === "pins" ? "Pins · Businesses" : "Heatmap · Popular spots"}
+          </button>
+        ))}
       </div>
+
+      {view === "pins" ? (
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-sage">
+            <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-mint motion-reduce:animate-none" aria-hidden="true" />
+            Right now{now ? ` · ${now.label}` : ""}
+          </p>
+          <p className="text-lg font-semibold">
+            {now === null ? " " : busiest ? `Busiest spot: ${nameOf(busiest)}` : "Quiet everywhere right now"}
+          </p>
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-sage">Last 4 weeks</p>
+          <p className="text-lg font-semibold">
+            {mostVisited
+              ? `Most visited: ${nameOf(mostVisited)} · ${Math.round(totalVisits(mostVisited)).toLocaleString("en-US")} visits`
+              : "No visits yet"}
+          </p>
+        </div>
+      )}
 
       <div ref={mapDiv} className="h-72 w-full overflow-hidden rounded-3xl border border-bark" />
 
-      {view === "heat" && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-bark bg-moss p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <label htmlFor="heat-hour" className="text-sm font-semibold">
-              Time of day
-            </label>
-            <input
-              id="heat-hour"
-              type="range"
-              min={6}
-              max={22}
-              value={hour ?? 12}
-              onChange={(e) => setHour(Number(e.target.value))}
-              aria-valuetext={hour === null ? "All day" : hourLabel(hour)}
-              className="min-w-40 flex-1 accent-mint"
-            />
-            <span className="w-14 text-sm tabular-nums">{hour === null ? "—" : hourLabel(hour)}</span>
-            <button
-              type="button"
-              onClick={() => setHour(null)}
-              aria-pressed={hour === null}
-              className={`rounded-full border border-bark px-3 py-1 text-sm font-semibold ${hour === null ? "bg-mint text-forest" : "hover:border-mint"}`}
-            >
-              All day
-            </button>
-          </div>
-
+      {view === "pins" ? (
+        <p className="text-xs text-sage">
+          Tap a pin to see how busy it usually is at this day and time, from the last 4 weeks of check-ins in Tiger
+          Data (simulated activity).
+        </p>
+      ) : (
+        <div className="flex flex-col gap-1">
           {/* Legend: color plus words, so it doesn't rely on color alone. */}
           <div className="flex items-center gap-3 text-sm text-sage">
-            <span>Quiet</span>
+            <span>Fewer visits</span>
             <span
               className="h-3 flex-1 rounded-full"
               style={{ background: `linear-gradient(to right, ${HEAT_COLORS.join(", ")})` }}
               aria-hidden="true"
             />
-            <span>Busy</span>
+            <span>More visits</span>
           </div>
           <p className="text-xs text-sage">
-            Average check-ins and purchases over the last 4 weeks, from Tiger Data (simulated activity).
+            Where people go most, from all check-ins and purchases over the last 4 weeks in Tiger Data (simulated activity).
           </p>
         </div>
       )}

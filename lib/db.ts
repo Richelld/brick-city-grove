@@ -57,25 +57,30 @@ export type HeatPoint = {
   placeId: string;
   lat: number;
   lng: number;
-  byHour: number[]; // 24 numbers: average daily visits in each hour (Newark time), last 4 weeks
+  // 168 numbers, one per hour of the week (Newark time): index = (weekday - 1) * 24 + hour,
+  // weekday 1 = Monday. Each is the average visits in that hour over the last 4 weeks.
+  byWeekHour: number[];
 };
 
 // Reads the visits_hourly continuous aggregate. Only approved places with coordinates.
+// The map picks the current hour of the week, so it shows how busy places usually are right now.
 export async function getHeatmap(): Promise<HeatPoint[]> {
+  // Exactly the last 4 full weeks, so every hour of the week is averaged over 4 samples.
   const { rows } = await pool.query(
     `select p.id as "placeId", p.lat, p.lng,
+            extract(isodow from v.bucket at time zone 'America/New_York')::int as weekday,
             extract(hour from v.bucket at time zone 'America/New_York')::int as hour,
-            sum(v.visits) / 28.0 as avg
+            sum(v.visits) / 4.0 as avg
      from visits_hourly v join places p on p.id = v.place_id
-     where v.bucket > now() - interval '28 days'
+     where v.bucket >= date_trunc('hour', now()) - interval '28 days' and v.bucket < date_trunc('hour', now())
        and p.status = 'approved' and p.lat is not null and p.lng is not null
-     group by p.id, p.lat, p.lng, hour`
+     group by p.id, p.lat, p.lng, weekday, hour`
   );
 
   const points = new Map<string, HeatPoint>();
   for (const r of rows) {
-    const point = points.get(r.placeId) ?? { placeId: r.placeId, lat: r.lat, lng: r.lng, byHour: Array(24).fill(0) };
-    point.byHour[r.hour] = Math.round(Number(r.avg) * 10) / 10;
+    const point = points.get(r.placeId) ?? { placeId: r.placeId, lat: r.lat, lng: r.lng, byWeekHour: Array(168).fill(0) };
+    point.byWeekHour[(r.weekday - 1) * 24 + r.hour] = Math.round(Number(r.avg) * 10) / 10;
     points.set(r.placeId, point);
   }
   return [...points.values()];

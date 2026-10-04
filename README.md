@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Brick City Grove
+
+Brick City Grove is a community discovery platform designed to help Newark residents, students, and visitors find local businesses, events, jobs, and community resources while encouraging more spending within the Newark community.
+
+## The Problem
+
+Newark has many local businesses, events, opportunities, and community resources, but information about them is often spread across different platforms.
+
+Brick City Grove brings these resources together in one place so users can more easily discover what is happening around Newark and support the local community.
+
+## Features
+
+- Interactive Newark map
+- Neighborhood activity heatmap
+- Gemini-powered Forest Guide
+- Local business discovery
+- Newark events
+- Local job opportunities
+- Community resources
+- Local economic impact tracking
+- Business analytics dashboard
+- Business event creation tools
+
+## Gemini Integration
+
+Brick City Grove uses the Google Gemini API to power the Forest Guide.
+
+The Forest Guide helps users discover Newark businesses, events, and community resources based on their questions and interests. The goal is to make local discovery more personalized and easier to navigate.
+
+The platform can also use Gemini to support business-facing tools, such as helping local businesses draft event descriptions.
+
+## Tiger Data Integration
+
+Tiger Data supports the data and analytics side of Brick City Grove.
+
+The platform uses PostgreSQL-based data storage for information such as businesses, events, visits, and purchases.
+
+Time-series activity can be used to understand patterns in local engagement and support features such as:
+
+- Neighborhood activity tracking
+- Visit trends
+- Purchase trends
+- Local economic impact
+- Dashboard analytics
+- Heatmap data
+
+## Azure Maps Integration
+
+Azure Maps powers the geographic features of Brick City Grove.
+
+It is used to display Newark locations and support the interactive map experience so users can explore nearby businesses, events, and other community resources.
+
+## GoDaddy
+
+The team plans to use GoDaddy for the project domain and deployment experience.
+
+Once the project is fully deployed, the live application link will be added here.
+
+## Tech Stack
+
+- Next.js
+- React
+- TypeScript
+- PostgreSQL
+- Tiger Data
+- Google Gemini API
+- Microsoft Azure Maps
+- GoDaddy
+- NextAuth
 
 ## Getting Started
 
-First, run the development server:
+Clone the repository:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+git clone https://github.com/Richelld/brick-city-grove.git

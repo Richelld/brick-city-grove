@@ -13,7 +13,7 @@ globalForDb.pool = pool;
 // Only approved businesses are public; pending ones wait for an admin.
 export async function getPlaces(): Promise<Place[]> {
   const { rows } = await pool.query(
-    `select id, name, category, neighborhood, address, lat, lng, hours, photo, is_sample as "isSample"
+    `select id, name, category, neighborhood, address, lat, lng, hours, photo, photo_is_logo as "photoIsLogo", is_sample as "isSample"
      from places where status = 'approved' order by name`
   );
   return rows;
@@ -22,7 +22,7 @@ export async function getPlaces(): Promise<Place[]> {
 // Any place by id, including pending ones (for the owner's own status page).
 export async function getPlaceById(id: string): Promise<Place | null> {
   const { rows } = await pool.query(
-    `select id, name, category, neighborhood, address, lat, lng, hours, photo, is_sample as "isSample"
+    `select id, name, category, neighborhood, address, lat, lng, hours, photo, photo_is_logo as "photoIsLogo", is_sample as "isSample"
      from places where id = $1`,
     [id]
   );
@@ -38,7 +38,7 @@ export async function getEvents(): Promise<GroveEvent[]> {
 
 export async function getJobs(): Promise<Job[]> {
   const { rows } = await pool.query(
-    `select id, role, business, pay, shift, is_sample as "isSample" from jobs order by id`
+    `select id, role, business, pay, shift, photo, is_sample as "isSample" from jobs order by id`
   );
   return rows;
 }

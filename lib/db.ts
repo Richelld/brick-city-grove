@@ -51,6 +51,36 @@ export async function getDollarsKeptLocal(): Promise<number> {
   return Number(rows[0].dollars);
 }
 
+// ---- Heatmap ----
+
+export type HeatPoint = {
+  placeId: string;
+  lat: number;
+  lng: number;
+  byHour: number[]; // 24 numbers: average daily visits in each hour (Newark time), last 4 weeks
+};
+
+// Reads the visits_hourly continuous aggregate. Only approved places with coordinates.
+export async function getHeatmap(): Promise<HeatPoint[]> {
+  const { rows } = await pool.query(
+    `select p.id as "placeId", p.lat, p.lng,
+            extract(hour from v.bucket at time zone 'America/New_York')::int as hour,
+            sum(v.visits) / 28.0 as avg
+     from visits_hourly v join places p on p.id = v.place_id
+     where v.bucket > now() - interval '28 days'
+       and p.status = 'approved' and p.lat is not null and p.lng is not null
+     group by p.id, p.lat, p.lng, hour`
+  );
+
+  const points = new Map<string, HeatPoint>();
+  for (const r of rows) {
+    const point = points.get(r.placeId) ?? { placeId: r.placeId, lat: r.lat, lng: r.lng, byHour: Array(24).fill(0) };
+    point.byHour[r.hour] = Math.round(Number(r.avg) * 10) / 10;
+    points.set(r.placeId, point);
+  }
+  return [...points.values()];
+}
+
 export async function getResources(): Promise<Resource[]> {
   const { rows } = await pool.query(
     `select id, name, kind, location, detail, is_sample as "isSample" from resources order by id`

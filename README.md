@@ -15,10 +15,8 @@ Brick City Grove brings these resources together in one place so users can more 
 - Gemini-powered Forest Guide
 - Local business discovery
 - Newark events
-- Local job opportunities
 - Community resources
 - Local economic impact tracking
-- Business analytics dashboard
 - Business event creation tools
 
 ## Gemini Integration
@@ -33,7 +31,7 @@ The platform can also use Gemini to support business-facing tools, such as helpi
 
 Tiger Data supports the data and analytics side of Brick City Grove.
 
-The platform uses PostgreSQL-based data storage for information such as businesses, events, visits, and purchases.
+The platform uses PostgreSQL-based data storage for information such as businesses, events, and visits.
 
 Time-series activity can be used to understand patterns in local engagement and support features such as:
 
@@ -52,7 +50,7 @@ It is used to display Newark locations and support the interactive map experienc
 
 The team plans to use GoDaddy for the project domain and deployment experience.
 
-Once the project is fully deployed, the live application link will be added here.
+https://brickcitygrove.us/
 
 ## Tech Stack
 
@@ -70,5 +68,12 @@ Once the project is fully deployed, the live application link will be added here
 
 Clone the repository:
 
-```bash
+```
 git clone https://github.com/Richelld/brick-city-grove.git
+
+```
+
+```
+npm run dev
+
+```

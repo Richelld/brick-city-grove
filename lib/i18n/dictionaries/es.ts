@@ -182,6 +182,7 @@ const es: Dictionary = {
     error: "Completa todos los campos obligatorios, incluido un teléfono del negocio de 10 dígitos.",
     listedTitle: "Mi negocio ya aparece",
     yourBusiness: "Tu negocio *",
+    nothingToClaim: "Todos los negocios de la lista ya tienen dueño. Agrega el tuyo con el formulario «Agregar mi negocio».",
     requestAccess: "Solicitar acceso",
     addTitle: "Agregar mi negocio",
     businessName: "Nombre del negocio *",
@@ -236,6 +237,7 @@ const es: Dictionary = {
     rejectedTitle: "No pudimos verificar este negocio",
     pendingTitle: "Esperando aprobación",
     rejectedText: "Tu solicitud no fue aprobada. Si crees que es un error, comunícate con el equipo de Brick City Grove.",
+    resubmit: "Corregir tus datos y enviar de nuevo",
     pendingText:
       "Nuestro equipo llamará al teléfono de tu negocio para confirmar que lo administras. Una vez aprobado, aquí se desbloquean tu panel y la publicación de eventos.",
   },

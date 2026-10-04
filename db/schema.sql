@@ -29,7 +29,6 @@ create table if not exists events (
 
 alter table events add column if not exists photo text;
 alter table events add column if not exists description text;
-alter table jobs add column if not exists photo text;
 
 create table if not exists jobs (
   id        text primary key,
@@ -39,6 +38,8 @@ create table if not exists jobs (
   shift     text not null,
   is_sample boolean not null default true
 );
+
+alter table jobs add column if not exists photo text;
 
 create table if not exists resources (
   id        text primary key,

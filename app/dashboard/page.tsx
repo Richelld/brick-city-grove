@@ -188,6 +188,11 @@ function ReviewStatus({ t, placeName, status }: { t: Dictionary; placeName: stri
         <p className="text-sage">
           {rejected ? t.dashboard.rejectedText : t.dashboard.pendingText}
         </p>
+        {rejected && (
+          <Link href="/welcome?as=business" className="mt-2 w-fit rounded-full bg-mint px-6 py-3 font-semibold text-forest hover:opacity-90">
+            {t.dashboard.resubmit}
+          </Link>
+        )}
       </section>
     </main>
   );

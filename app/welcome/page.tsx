@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Rich from "../components/Rich";
-import { getCurrentUser, isAdmin } from "@/lib/current-user";
+import { canSubmitBusiness, getCurrentUser, isAdmin } from "@/lib/current-user";
 import { getClaimablePlaces } from "@/lib/db";
 import { BUSINESS_CATEGORIES } from "@/lib/categories";
 import { categoryName, fill, type Dictionary } from "@/lib/i18n";
@@ -17,17 +17,19 @@ const OWNER_TITLES = ["Owner", "Co-owner", "Manager"];
 
 // First sign-in only: confirm "resident", or set up a business (which then needs admin approval).
 // /welcome?as=business shows the business forms; anything else shows the resident one.
+// Owners whose request was rejected come back here to fix it and submit again.
 export default async function WelcomePage({ searchParams }: PageProps<"/welcome">) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role === "business") redirect("/dashboard");
   if (user.role === "resident") redirect(isAdmin(user) ? "/admin" : "/");
+  if (!canSubmitBusiness(user)) redirect("/dashboard"); // pending or approved business
+  const resubmitting = user.role === "business"; // rejected before, only the business forms apply
 
   const { as, error } = await searchParams;
   const firstName = user.name?.split(" ")[0];
   const { t } = await getDictionary();
 
-  if (as !== "business") {
+  if (as !== "business" && !resubmitting) {
     return (
       <main className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-12">
         <h1 className="font-display text-4xl font-bold">{firstName ? fill(t.welcome.hiName, { name: firstName }) : t.welcome.hi}</h1>
@@ -63,16 +65,23 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
         {/* Option 1: claim an existing listing */}
         <form action={claimBusiness} className={CARD}>
           <h2 className="font-display text-2xl font-semibold">{t.welcome.listedTitle}</h2>
-          <label className="flex flex-col gap-1 text-sm text-sage">
-            {t.welcome.yourBusiness}
-            <select name="place" required className={INPUT}>
-              {claimable.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} · {categoryName(t, p.category)}</option>
-              ))}
-            </select>
-          </label>
-          <VerificationFields t={t} />
-          <button className={BUTTON}>{t.welcome.requestAccess}</button>
+          {/* Every listing already has an owner: nothing to pick, so don't show a form that can't be sent. */}
+          {claimable.length === 0 ? (
+            <p className="text-sage">{t.welcome.nothingToClaim}</p>
+          ) : (
+            <>
+              <label className="flex flex-col gap-1 text-sm text-sage">
+                {t.welcome.yourBusiness}
+                <select name="place" required className={INPUT}>
+                  {claimable.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} · {categoryName(t, p.category)}</option>
+                  ))}
+                </select>
+              </label>
+              <VerificationFields t={t} />
+              <button className={BUTTON}>{t.welcome.requestAccess}</button>
+            </>
+          )}
         </form>
 
         {/* Option 2: add a new business (any kind, not just food) */}
@@ -103,9 +112,11 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
         </form>
       </div>
 
-      <Link href="/welcome?as=resident" className="text-center text-sm text-sage underline">
-        {t.welcome.residentInstead}
-      </Link>
+      {!resubmitting && (
+        <Link href="/welcome?as=resident" className="text-center text-sm text-sage underline">
+          {t.welcome.residentInstead}
+        </Link>
+      )}
     </main>
   );
 }

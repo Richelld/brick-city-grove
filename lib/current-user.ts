@@ -11,6 +11,12 @@ export async function getCurrentUser(): Promise<User | null> {
   return getUserByEmail(email);
 }
 
+// Can this person submit a business for review? Yes if they haven't picked a role yet,
+// or if their last business request was rejected (they can fix it and try again).
+export function canSubmitBusiness(user: User): boolean {
+  return user.role === null || (user.role === "business" && user.businessStatus === "rejected");
+}
+
 // Admins approve businesses. Someone is an admin if:
 //  - their account has the admin flag (npm run make-admin -- email), or
 //  - they signed in with Google and their email is in ADMIN_EMAILS (Google verified the email).

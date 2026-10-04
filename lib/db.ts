@@ -238,11 +238,12 @@ export async function getClaimablePlaces(): Promise<Place[]> {
 }
 
 // Owner asks to manage an existing listing. Stays pending until an admin approves.
+// Rejected owners can submit again; approved and pending ones can't be changed here.
 export async function requestBusinessClaim(email: string, placeId: string, d: ClaimDetails) {
   await pool.query(
     `update users set role = 'business', place_id = $2, business_status = 'pending',
        owner_title = $3, business_phone = $4, business_website = $5
-     where email = $1 and role is null`,
+     where email = $1 and (role is null or (role = 'business' and business_status = 'rejected'))`,
     [email, placeId, d.ownerTitle, d.phone, d.website || null]
   );
 }

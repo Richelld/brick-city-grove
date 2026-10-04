@@ -4,6 +4,8 @@
 
 import { auth } from "@/auth";
 import { getPlaces, getEvents, getResources } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/server";
+import type { Dictionary } from "@/lib/i18n";
 
 // Any model name from Google AI Studio works; set GEMINI_MODEL in .env.local to pin one.
 const MODEL = process.env.GEMINI_MODEL ?? "gemini-flash-latest";
@@ -14,13 +16,14 @@ const MAX_MESSAGE_CHARS = 1000;
 type ChatMessage = { role: "user" | "guide"; text: string };
 
 export async function POST(request: Request) {
+  const { t } = await getDictionary(); // the visitor's language, from the switcher cookie
   // Signed-in users only, so strangers can't run up the Gemini bill.
   const session = await auth();
   if (!session?.user?.email) {
-    return Response.json({ error: "Sign in to chat with the Forest Guide." }, { status: 401 });
+    return Response.json({ error: t.guide.errorSignIn }, { status: 401 });
   }
   if (!process.env.GEMINI_API_KEY) {
-    return Response.json({ error: "The Forest Guide isn't set up yet (missing GEMINI_API_KEY)." }, { status: 500 });
+    return Response.json({ error: t.guide.errorNotSetUp }, { status: 500 });
   }
 
   const body = await request.json().catch(() => null);
@@ -31,11 +34,11 @@ export async function POST(request: Request) {
         .map((m: ChatMessage) => ({ role: m.role, text: m.text.slice(0, MAX_MESSAGE_CHARS) }))
     : [];
   if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
-    return Response.json({ error: "Send a question first." }, { status: 400 });
+    return Response.json({ error: t.guide.errorNoQuestion }, { status: 400 });
   }
 
   const requestBody = JSON.stringify({
-    systemInstruction: { parts: [{ text: await buildInstructions() }] },
+    systemInstruction: { parts: [{ text: await buildInstructions(t) }] },
     contents: messages.map((m) => ({ role: m.role === "user" ? "user" : "model", parts: [{ text: m.text }] })),
   });
 
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
 
   if (!res?.ok) {
     console.error("Gemini error", res?.status, await res?.text());
-    return Response.json({ error: "The Forest Guide couldn't answer right now. Try again in a moment." }, { status: 502 });
+    return Response.json({ error: t.guide.errorBusy }, { status: 502 });
   }
 
   const data = await res.json();
@@ -65,11 +68,11 @@ export async function POST(request: Request) {
     .map((p: { text?: string }) => p.text ?? "")
     .join("")
     .trim();
-  return Response.json({ reply: reply || "Hmm, I'm not sure. Could you ask that another way?" });
+  return Response.json({ reply: reply || t.guide.fallbackReply });
 }
 
 // The guide's personality and rules, plus everything listed in the Grove right now.
-async function buildInstructions(): Promise<string> {
+async function buildInstructions(t: Dictionary): Promise<string> {
   const [places, events, resources] = await Promise.all([getPlaces(), getEvents(), getResources()]);
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York",
@@ -91,6 +94,7 @@ People ask things like "I'm bored, what can I do?", "I want coffee, where should
 - Give 2-4 suggestions with one short line each on why it fits. Keep answers short and friendly, like a local friend texting back.
 - If the request is vague, suggest a mix (food, outdoors, culture, events) and ask one follow-up question about mood, budget or neighborhood.
 - Use plain text with simple "-" bullet lists. No markdown headings, bold or tables.
+- Reply in ${t.guide.replyLanguage}, the language the person picked on the site. If they write to you in a different language, reply in the language they wrote in. Keep business, event and place names as they are.
 
 GROVE BUSINESSES:
 ${placeLines.join("\n") || "(none yet)"}

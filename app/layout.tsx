@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import ForestGuide from "./components/ForestGuide";
 import InlineScript from "./components/InlineScript";
+import LanguageProvider from "./components/LanguageProvider";
 import SiteHeader from "./components/SiteHeader";
+import { getDictionary } from "@/lib/i18n/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,15 +22,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Brick City Grove",
-  description: "Discover and support local Newark businesses, events, and jobs.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getDictionary();
+  return {
+    title: "Brick City Grove",
+    description: t.meta.description,
+  };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { locale } = await getDictionary();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       data-theme="light"
       suppressHydrationWarning // the script below may change data-theme before React loads
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
@@ -40,9 +47,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="min-h-full flex flex-col">
-        <SiteHeader />
-        {children}
-        <ForestGuide />
+        <LanguageProvider locale={locale}>
+          <SiteHeader />
+          {children}
+          <ForestGuide />
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -9,9 +9,10 @@ type Props = {
   photoIsLogo?: boolean; // show the whole image (no cropping), for logos
   label: string;        // shown in the square when there's no photo, e.g. "Bakery"
   isSample: boolean;
+  sampleLabel: string;  // "Sample" in the visitor's language
 };
 
-export default function ListingCard({ title, subtitle, detail, photo, photoIsLogo, label, isSample }: Props) {
+export default function ListingCard({ title, subtitle, detail, photo, photoIsLogo, label, isSample, sampleLabel }: Props) {
   return (
     <article className="flex flex-col gap-1 rounded-2xl border border-bark bg-moss p-3">
       <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-bark to-olive">
@@ -33,7 +34,7 @@ export default function ListingCard({ title, subtitle, detail, photo, photoIsLog
       <p className="text-sm text-sage">{detail}</p>
 
       {isSample && (
-        <span className="mt-1 w-fit rounded-full bg-olive px-2 py-0.5 text-xs text-sage">Sample</span>
+        <span className="mt-1 w-fit rounded-full bg-olive px-2 py-0.5 text-xs text-sage">{sampleLabel}</span>
       )}
     </article>
   );

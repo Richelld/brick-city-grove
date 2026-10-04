@@ -1,20 +1,22 @@
 import Link from "next/link";
+import LanguageSwitcher from "./LanguageSwitcher";
 import ThemeToggle from "./ThemeToggle";
 import { getCurrentUser, isAdmin } from "@/lib/current-user";
+import { getDictionary } from "@/lib/i18n/server";
 import { signOutAction } from "../login/actions";
-
-// Forest name + plain label for every link.
-const NAV = [
-  { href: "/?tab=food#browse", name: "Groves", plain: "Local Businesses" },
-  { href: "/?tab=events#browse", name: "Gatherings", plain: "Events" },
-  { href: "/?tab=jobs#browse", name: "Quests", plain: "Jobs" },
-  { href: "/lantern", name: "Lantern Board", plain: "Resources" },
-];
 
 const PILL = "rounded-full border border-bark bg-moss px-4 py-2 text-sm font-semibold hover:border-mint";
 
 export default async function SiteHeader() {
-  const user = await getCurrentUser();
+  const [user, { t }] = await Promise.all([getCurrentUser(), getDictionary()]);
+
+  // Forest name + plain label for every link.
+  const nav = [
+    { href: "/?tab=food#browse", name: t.header.groves, plain: t.header.localBusinesses },
+    { href: "/?tab=events#browse", name: t.header.gatherings, plain: t.header.events },
+    { href: "/?tab=jobs#browse", name: t.header.quests, plain: t.header.jobs },
+    { href: "/lantern", name: t.header.lanternBoard, plain: t.header.resources },
+  ];
 
   return (
     <header className="border-b border-bark">
@@ -27,31 +29,32 @@ export default async function SiteHeader() {
           <div className="flex flex-wrap items-center gap-2">
             {isAdmin(user) && (
               <Link href="/admin" className={PILL}>
-                Admin
+                {t.header.admin}
               </Link>
             )}
             {/* Only business owners get the dashboard link */}
             {user?.role === "business" && (
               <Link href="/dashboard" className={PILL}>
-                Owner dashboard
+                {t.header.ownerDashboard}
               </Link>
             )}
+            <LanguageSwitcher />
             <ThemeToggle />
             {user ? (
               <form action={signOutAction} className="flex items-center gap-2">
                 {user.name && <span className="hidden text-sm text-sage sm:inline">{user.name}</span>}
-                <button className={PILL}>Sign out</button>
+                <button className={PILL}>{t.header.signOut}</button>
               </form>
             ) : (
               <Link href="/login" className="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-forest hover:opacity-90">
-                Sign in
+                {t.header.signIn}
               </Link>
             )}
           </div>
         </div>
 
         <nav aria-label="Main" className="flex flex-wrap gap-2">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <Link key={item.href} href={item.href} className={PILL}>
               {item.name}
               <span className="font-normal text-sage"> · {item.plain}</span>

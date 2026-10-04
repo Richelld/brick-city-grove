@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import "azure-maps-control/dist/atlas.min.css";
 import type { Place } from "@/lib/fake-data";
 import type { HeatPoint } from "@/lib/db";
+import { fill, type Dictionary, type Locale } from "@/lib/i18n";
+import { useTranslation } from "./LanguageProvider";
 
 // Downtown Newark, as [longitude, latitude] (Azure Maps puts longitude first).
 const NEWARK: [number, number] = [-74.168, 40.738];
@@ -30,7 +32,7 @@ function useMinute() {
 }
 
 // Weekday and hour in Newark, whatever time zone the visitor's device is in.
-function newarkTime(minute: number) {
+function newarkTime(minute: number, locale: Locale) {
   const date = new Date(minute * 60_000);
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -40,17 +42,17 @@ function newarkTime(minute: number) {
   }).formatToParts(date);
   const weekday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(parts.find((p) => p.type === "weekday")!.value);
   const hour = Number(parts.find((p) => p.type === "hour")!.value);
-  const label = date.toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", hour: "numeric", minute: "2-digit" });
+  const label = date.toLocaleString(locale, { timeZone: "America/New_York", weekday: "long", hour: "numeric", minute: "2-digit" });
   return { weekHour: weekday * 24 + hour, label };
 }
 
 // How busy a place is now, compared with its own busiest hour of the week.
-function busyLabel(now: number, peak: number) {
-  if (now === 0 || peak === 0) return "Usually quiet now";
+function busyLabel(t: Dictionary, now: number, peak: number) {
+  if (now === 0 || peak === 0) return t.map.usuallyQuiet;
   const ratio = now / peak;
-  if (ratio >= 0.66) return "Busy right now";
-  if (ratio >= 0.33) return "A little busy";
-  return "Not too busy";
+  if (ratio >= 0.66) return t.map.busyNow;
+  if (ratio >= 0.33) return t.map.littleBusy;
+  return t.map.notTooBusy;
 }
 
 // All visits to a place over the 4 weeks: each hour's weekly average, times 4 weeks.
@@ -77,6 +79,7 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
   const [view, setView] = useState<"pins" | "heat">("pins");
   const [ready, setReady] = useState(false);
   const minute = useMinute();
+  const { locale, t } = useTranslation();
 
   // Things the map creates once, which the effect below updates.
   type Pin = { place: Place; pin: import("azure-maps-control").HtmlMarker; popup: import("azure-maps-control").Popup };
@@ -166,7 +169,7 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
     };
   }, [places, heat]);
 
-  const now = minute === null ? null : newarkTime(minute);
+  const now = minute === null ? null : newarkTime(minute, locale);
   const weekHour = now?.weekHour ?? null;
 
   // Switch between pins and heatmap.
@@ -184,10 +187,10 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
     if (!ready || weekHour === null) return;
     for (const [placeId, { place, popup }] of pinsRef.current) {
       const point = heat.find((p) => p.placeId === placeId);
-      const busy = point ? busyLabel(point.byWeekHour[weekHour], Math.max(...point.byWeekHour)) : "";
+      const busy = point ? busyLabel(t, point.byWeekHour[weekHour], Math.max(...point.byWeekHour)) : "";
       popup.setOptions({ content: popupContent(place, busy) });
     }
-  }, [ready, weekHour, heat]);
+  }, [ready, weekHour, heat, t]);
 
   const nameOf = (point: HeatPoint | null) => (point ? places.find((p) => p.id === point.placeId)?.name : null);
 
@@ -204,8 +207,8 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
         );
 
   return (
-    <section className="flex flex-col gap-3" aria-label="Map of local businesses in Newark">
-      <div className="flex w-fit rounded-full border border-bark p-1" role="group" aria-label="Map view">
+    <section className="flex flex-col gap-3" aria-label={t.map.sectionLabel}>
+      <div className="flex w-fit rounded-full border border-bark p-1" role="group" aria-label={t.map.viewLabel}>
         {(["pins", "heat"] as const).map((v) => (
           <button
             key={v}
@@ -214,7 +217,7 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
             aria-pressed={view === v}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold ${view === v ? "bg-mint text-forest" : "hover:text-mint"}`}
           >
-            {v === "pins" ? "Pins · Businesses" : "Heatmap · Popular spots"}
+            {v === "pins" ? t.map.pins : t.map.heat}
           </button>
         ))}
       </div>
@@ -223,19 +226,22 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-sage">
             <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-mint motion-reduce:animate-none" aria-hidden="true" />
-            Right now{now ? ` · ${now.label}` : ""}
+            {t.map.rightNow}{now ? ` · ${now.label}` : ""}
           </p>
           <p className="text-lg font-semibold">
-            {now === null ? " " : busiest ? `Busiest spot: ${nameOf(busiest)}` : "Quiet everywhere right now"}
+            {now === null ? " " : busiest ? fill(t.map.busiestSpot, { name: nameOf(busiest) ?? "" }) : t.map.quietEverywhere}
           </p>
         </div>
       ) : (
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-sage">Last 4 weeks</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-sage">{t.map.lastFourWeeks}</p>
           <p className="text-lg font-semibold">
             {mostVisited
-              ? `Most visited: ${nameOf(mostVisited)} · ${Math.round(totalVisits(mostVisited)).toLocaleString("en-US")} visits`
-              : "No visits yet"}
+              ? fill(t.map.mostVisited, {
+                  name: nameOf(mostVisited) ?? "",
+                  count: Math.round(totalVisits(mostVisited)).toLocaleString(locale),
+                })
+              : t.map.noVisits}
           </p>
         </div>
       )}
@@ -244,23 +250,22 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
 
       {view === "pins" ? (
         <p className="text-xs text-sage">
-          Tap a pin to see how busy it usually is at this day and time, from the last 4 weeks of check-ins in Tiger
-          Data (simulated activity).
+          {t.map.pinsNote}
         </p>
       ) : (
         <div className="flex flex-col gap-1">
           {/* Legend: color plus words, so it doesn't rely on color alone. */}
           <div className="flex items-center gap-3 text-sm text-sage">
-            <span>Fewer visits</span>
+            <span>{t.map.fewerVisits}</span>
             <span
               className="h-3 flex-1 rounded-full"
               style={{ background: `linear-gradient(to right, ${HEAT_COLORS.join(", ")})` }}
               aria-hidden="true"
             />
-            <span>More visits</span>
+            <span>{t.map.moreVisits}</span>
           </div>
           <p className="text-xs text-sage">
-            Where people go most, from all check-ins and purchases over the last 4 weeks in Tiger Data (simulated activity).
+            {t.map.heatNote}
           </p>
         </div>
       )}

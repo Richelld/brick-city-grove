@@ -1,13 +1,13 @@
 "use client"; // The chat window keeps its messages in the browser and talks to /api/guide.
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "./LanguageProvider";
 
 // Floating "Forest Guide" chat on every page. Ask it where to go in Newark.
 type ChatMessage = { role: "user" | "guide"; text: string };
 
-const STARTERS = ["I'm bored, what can I do?", "I want coffee, where should I go?", "Where can I go to explore?"];
-
 export default function ForestGuide() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -35,10 +35,10 @@ export default function ForestGuide() {
         body: JSON.stringify({ messages: next }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
+      if (!res.ok) throw new Error(data.error ?? t.guide.errorGeneric);
       setMessages([...next, { role: "guide", text: data.reply }]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setError(e instanceof Error ? e.message : t.guide.errorGeneric);
       setMessages(messages); // let them try the same question again
       setInput(question);
     } finally {
@@ -52,22 +52,22 @@ export default function ForestGuide() {
         onClick={() => setOpen(true)}
         className="fixed bottom-4 right-4 z-50 rounded-full bg-mint px-5 py-3 font-semibold text-forest shadow-lg hover:opacity-90"
       >
-        Ask the Forest Guide
+        {t.guide.open}
       </button>
     );
   }
 
   return (
     <section
-      aria-label="Forest Guide chat"
+      aria-label={t.guide.chatLabel}
       className="fixed inset-x-4 bottom-4 z-50 flex max-h-[75vh] flex-col rounded-3xl border border-bark bg-moss shadow-xl sm:left-auto sm:w-96"
     >
       <header className="flex items-center justify-between border-b border-bark px-5 py-3">
         <div>
-          <p className="font-display text-lg font-semibold">Forest Guide</p>
-          <p className="text-xs text-sage">Things to do in Newark</p>
+          <p className="font-display text-lg font-semibold">{t.guide.title}</p>
+          <p className="text-xs text-sage">{t.guide.subtitle}</p>
         </div>
-        <button onClick={() => setOpen(false)} aria-label="Close chat" className="rounded-full px-3 py-1 text-sage hover:text-mist">
+        <button onClick={() => setOpen(false)} aria-label={t.guide.close} className="rounded-full px-3 py-1 text-sage hover:text-mist">
           ✕
         </button>
       </header>
@@ -75,9 +75,9 @@ export default function ForestGuide() {
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-4" aria-live="polite">
         {messages.length === 0 && (
           <>
-            <p className="text-sm text-sage">Bored? Hungry? Tell me what you&apos;re in the mood for and I&apos;ll point you somewhere in Newark.</p>
+            <p className="text-sm text-sage">{t.guide.intro}</p>
             <div className="flex flex-col gap-2">
-              {STARTERS.map((s) => (
+              {t.guide.starters.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
@@ -101,7 +101,7 @@ export default function ForestGuide() {
           </p>
         ))}
 
-        {loading && <p className="self-start rounded-2xl bg-olive px-3 py-2 text-sm text-sage">Looking around the Grove…</p>}
+        {loading && <p className="self-start rounded-2xl bg-olive px-3 py-2 text-sm text-sage">{t.guide.loading}</p>}
         {error && <p className="text-sm text-red-500">{error}</p>}
         <div ref={bottomRef} />
       </div>
@@ -116,8 +116,8 @@ export default function ForestGuide() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="I want tacos in the Ironbound…"
-          aria-label="Your question"
+          placeholder={t.guide.placeholder}
+          aria-label={t.guide.inputLabel}
           maxLength={1000}
           className="min-w-0 flex-1 rounded-full border border-bark bg-forest px-4 py-2 text-sm outline-none focus:border-mint"
         />
@@ -125,7 +125,7 @@ export default function ForestGuide() {
           disabled={loading || !input.trim()}
           className="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-forest hover:opacity-90 disabled:opacity-50"
         >
-          Send
+          {t.guide.send}
         </button>
       </form>
     </section>

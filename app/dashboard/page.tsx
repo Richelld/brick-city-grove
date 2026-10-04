@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import Rich from "../components/Rich";
 import { getDashboardStats, getPlaceById } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
+import { categoryName, fill, type Dictionary } from "@/lib/i18n";
+import { getDictionary } from "@/lib/i18n/server";
 import { publishEvent } from "./actions";
 import { formatHour, percentChange } from "./format";
 import TrafficChart from "./TrafficChart";
@@ -18,9 +21,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/dashboard"
   const place = await getPlaceById(user.placeId);
   if (!place) redirect("/");
 
+  const { locale, t } = await getDictionary();
+
   // Not approved yet (or rejected): show the status instead of the dashboard.
   if (user.businessStatus !== "approved") {
-    return <ReviewStatus placeName={place.name} status={user.businessStatus} />;
+    return <ReviewStatus t={t} placeName={place.name} status={user.businessStatus} />;
   }
 
   const { error } = await searchParams;
@@ -28,91 +33,96 @@ export default async function Dashboard({ searchParams }: PageProps<"/dashboard"
 
   const visitsChange = percentChange(stats.visitsThisWeek, stats.visitsLastWeek);
   const seedsChange = percentChange(stats.seedsThisWeek, stats.seedsLastWeek);
-  const busiest = stats.busiestHour === null ? "—" : formatHour(stats.busiestHour);
+  const busiest = stats.busiestHour === null ? "—" : formatHour(stats.busiestHour, locale);
+  const direction = (change: number) => (change >= 0 ? t.dashboard.upLower : t.dashboard.downLower);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8">
       {/* Title row */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-sage">Owner dashboard</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-sage">{t.dashboard.eyebrow}</p>
           <h1 className="font-display text-4xl font-bold">{place.name}</h1>
-          <p className="text-sage">{place.neighborhood} · data simulated for demo</p>
+          <p className="text-sage">{place.neighborhood} · {t.dashboard.simulated}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/?tab=food&q=${encodeURIComponent(place.name)}#browse`}
             className="rounded-full border border-bark bg-moss px-4 py-2 text-sm font-semibold hover:border-mint"
           >
-            View public page →
+            {t.dashboard.viewPublic}
           </Link>
         </div>
       </div>
 
       {/* Stat tiles */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatTile label="Visits this week" value={stats.visitsThisWeek.toLocaleString("en-US")} change={visitsChange} />
-        <StatTile label="Seeds granted" value={stats.seedsThisWeek.toLocaleString("en-US")} change={seedsChange} />
+        <StatTile t={t} label={t.dashboard.visitsThisWeek} value={stats.visitsThisWeek.toLocaleString(locale)} change={visitsChange} />
+        <StatTile t={t} label={t.dashboard.seedsGranted} value={stats.seedsThisWeek.toLocaleString(locale)} change={seedsChange} />
         <div className="rounded-2xl border border-bark bg-moss p-5">
-          <p className="text-sm text-sage">Busiest hour</p>
+          <p className="text-sm text-sage">{t.dashboard.busiestHour}</p>
           <p className="font-display text-4xl font-bold">{busiest}</p>
-          <p className="text-sm text-sage">{stats.busiestHourAvg} visits on an average weekday</p>
+          <p className="text-sm text-sage">{fill(t.dashboard.avgWeekdayVisits, { count: stats.busiestHourAvg })}</p>
         </div>
       </div>
 
       {/* Foot traffic chart */}
       <section className="rounded-2xl border border-bark bg-moss p-5">
-        <h2 className="font-display text-2xl font-semibold">Foot traffic by hour</h2>
-        <p className="mb-4 text-sm text-sage">Average weekday, last 4 weeks</p>
+        <h2 className="font-display text-2xl font-semibold">{t.dashboard.trafficTitle}</h2>
+        <p className="mb-4 text-sm text-sage">{t.dashboard.trafficNote}</p>
         <TrafficChart data={stats.trafficByHour} />
       </section>
 
       {/* Weekly summary: written from the numbers by a simple template for now. */}
       <section className="rounded-2xl border border-bark bg-moss p-5">
-        <h2 className="font-display text-2xl font-semibold">Weekly summary</h2>
+        <h2 className="font-display text-2xl font-semibold">{t.dashboard.summaryTitle}</h2>
         <p className="mt-2 text-lg">
-          Your busiest hour is <strong>{busiest}</strong>, with about {stats.busiestHourAvg} visits on an average weekday
-          {stats.busiestHour !== null && (
-            <> — consider extra help from {formatHour(Math.max(0, stats.busiestHour - 1))}–{formatHour(Math.min(23, stats.busiestHour + 1))}</>
-          )}
-          . Visits are {visitsChange >= 0 ? "up" : "down"} <strong>{Math.abs(visitsChange)}%</strong> from last week.
+          <Rich text={fill(t.dashboard.summaryBusiest, { hour: busiest, count: stats.busiestHourAvg })} />
+          {stats.busiestHour !== null &&
+            fill(t.dashboard.summaryHelp, {
+              from: formatHour(Math.max(0, stats.busiestHour - 1), locale),
+              to: formatHour(Math.min(23, stats.busiestHour + 1), locale),
+            })}
+          <Rich text={fill(t.dashboard.summaryVisits, { direction: direction(visitsChange), percent: Math.abs(visitsChange) })} />
           {stats.fridayEveningChange !== null && (
-            <>
-              {" "}Friday evenings are {stats.fridayEveningChange >= 0 ? "up" : "down"}{" "}
-              <strong>{Math.abs(stats.fridayEveningChange)}%</strong>.
-            </>
+            <Rich
+              text={fill(t.dashboard.summaryFriday, {
+                direction: direction(stats.fridayEveningChange),
+                percent: Math.abs(stats.fridayEveningChange),
+              })}
+            />
           )}
         </p>
         <p className="mt-2 text-xs text-sage">
-          Built from your Tiger Data numbers with a template. An AI-written version needs Gemini connected.
+          {t.dashboard.summaryNote}
         </p>
       </section>
 
       {/* Post a gathering → adds an event to the database */}
       <section className="rounded-2xl border border-bark bg-moss p-5">
-        <h2 className="font-display text-2xl font-semibold">Post a gathering</h2>
-        <p className="mb-4 text-sm text-sage">It shows up on the Gatherings tab right away.</p>
+        <h2 className="font-display text-2xl font-semibold">{t.dashboard.postTitle}</h2>
+        <p className="mb-4 text-sm text-sage">{t.dashboard.postNote}</p>
         {error === "missing" && (
           <p role="alert" className="mb-3 rounded-lg border border-bark bg-olive px-3 py-2 text-sm">
-            Please add a title and a date &amp; time.
+            {t.dashboard.postMissing}
           </p>
         )}
 
         <form action={publishEvent} className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Event title" name="title" placeholder="Pastel de nata tasting" />
-            <Field label="Date & time" name="date" placeholder="Sat, 10am" />
+            <Field label={t.dashboard.eventTitle} name="title" placeholder={t.dashboard.eventTitlePlaceholder} />
+            <Field label={t.dashboard.dateTime} name="date" placeholder={t.dashboard.dateTimePlaceholder} />
             <label className="flex flex-col gap-1 text-sm text-sage">
-              Category
+              {t.dashboard.category}
               <select name="category" className="rounded-xl border border-bark bg-forest px-4 py-3 text-base text-mist">
                 {CATEGORIES.map((c) => (
-                  <option key={c}>{c}</option>
+                  <option key={c} value={c}>{categoryName(t, c)}</option>
                 ))}
               </select>
             </label>
           </div>
           <label className="flex flex-col gap-1 text-sm text-sage">
-            Description
+            {t.dashboard.description}
             <textarea
               name="description"
               rows={3}
@@ -120,16 +130,16 @@ export default async function Dashboard({ searchParams }: PageProps<"/dashboard"
             />
           </label>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="rounded-full bg-mint px-6 py-3 font-semibold text-forest hover:opacity-90">Publish</button>
+            <button className="rounded-full bg-mint px-6 py-3 font-semibold text-forest hover:opacity-90">{t.dashboard.publish}</button>
             <button
               type="button"
               disabled
-              title="Needs a Gemini API key"
+              title={t.dashboard.needsGemini}
               className="cursor-not-allowed rounded-full border border-bark px-6 py-3 font-semibold text-sage"
             >
-              Draft with Gemini
+              {t.dashboard.draftGemini}
             </button>
-            <span className="text-xs text-sage">Gemini drafting turns on once an API key is added.</span>
+            <span className="text-xs text-sage">{t.dashboard.geminiNote}</span>
           </div>
         </form>
       </section>
@@ -137,7 +147,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/dashboard"
   );
 }
 
-function StatTile({ label, value, change }: { label: string; value: string; change: number }) {
+function StatTile({ t, label, value, change }: { t: Dictionary; label: string; value: string; change: number }) {
   const up = change >= 0;
   return (
     <div className="rounded-2xl border border-bark bg-moss p-5">
@@ -146,7 +156,7 @@ function StatTile({ label, value, change }: { label: string; value: string; chan
       {/* Arrow + word, so the trend isn't shown by color alone */}
       <p className="text-sm text-sage">
         <span aria-hidden="true">{up ? "▲" : "▼"} </span>
-        {up ? "Up" : "Down"} {Math.abs(change)}% vs last week
+        {fill(t.dashboard.vsLastWeek, { direction: up ? t.dashboard.up : t.dashboard.down, percent: Math.abs(change) })}
       </p>
     </div>
   );
@@ -165,20 +175,18 @@ function Field({ label, name, placeholder }: { label: string; name: string; plac
   );
 }
 
-function ReviewStatus({ placeName, status }: { placeName: string; status: string | null }) {
+function ReviewStatus({ t, placeName, status }: { t: Dictionary; placeName: string; status: string | null }) {
   const rejected = status === "rejected";
   return (
     <main className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-12">
-      <p className="text-sm font-semibold uppercase tracking-wide text-sage">Owner dashboard</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-sage">{t.dashboard.eyebrow}</p>
       <h1 className="font-display text-4xl font-bold">{placeName}</h1>
       <section role="status" className="flex flex-col gap-2 rounded-3xl border border-bark bg-moss p-6">
         <h2 className="font-display text-2xl font-semibold">
-          {rejected ? "We couldn't verify this business" : "Waiting for approval"}
+          {rejected ? t.dashboard.rejectedTitle : t.dashboard.pendingTitle}
         </h2>
         <p className="text-sage">
-          {rejected
-            ? "Your request wasn't approved. If you think this is a mistake, contact the Brick City Grove team."
-            : "Our team will call your business phone number to confirm you run it. Once approved, your dashboard and event posting unlock here."}
+          {rejected ? t.dashboard.rejectedText : t.dashboard.pendingText}
         </p>
       </section>
     </main>

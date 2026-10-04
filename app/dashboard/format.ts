@@ -1,5 +1,9 @@
-// 8 -> "8am", 12 -> "12pm", 19 -> "7pm"
-export function formatHour(hour: number): string {
+import type { Locale } from "@/lib/i18n";
+
+// English: 8 -> "8am", 19 -> "7pm". Spanish: 19 -> "19:00". Brazilian Portuguese: 19 -> "19h".
+export function formatHour(hour: number, locale: Locale = "en-US"): string {
+  if (locale === "es") return `${hour}:00`;
+  if (locale === "pt-BR") return `${hour}h`;
   const suffix = hour < 12 ? "am" : "pm";
   const h = hour % 12 === 0 ? 12 : hour % 12;
   return `${h}${suffix}`;

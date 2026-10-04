@@ -52,6 +52,15 @@ The team plans to use GoDaddy for the project domain and deployment experience.
 
 https://brickcitygrove.us/
 
+## Images of website
+
+<img width="954" height="515" alt="image" src="https://github.com/user-attachments/assets/dbdf4f6b-bcb7-4330-a966-443b4238db60" />
+<img width="1027" height="481" alt="image" src="https://github.com/user-attachments/assets/e6480fa9-e45d-4e07-8532-fa8ff3ac9365" />
+<img width="1016" height="457" alt="image" src="https://github.com/user-attachments/assets/566bb6bc-412e-4918-a23a-310ce09c17c0" />
+
+
+
+
 ## Tech Stack
 
 - Next.js

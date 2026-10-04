@@ -129,7 +129,7 @@ function VerificationFields({ t }: { t: Dictionary }) {
       </label>
       <label className="flex flex-col gap-1 text-sm text-sage">
         {t.welcome.website}
-        <input name="website" placeholder="instagram.com/yourbusiness" className={INPUT} />
+        <input name="website" placeholder={t.welcome.websitePlaceholder} className={INPUT} />
       </label>
     </fieldset>
   );

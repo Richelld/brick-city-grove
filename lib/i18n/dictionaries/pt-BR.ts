@@ -20,6 +20,7 @@ const ptBR: Dictionary = {
     signIn: "Entrar",
     signOut: "Sair",
     language: "Idioma",
+    mainNav: "Principal",
   },
 
   theme: {
@@ -46,6 +47,7 @@ const ptBR: Dictionary = {
     job: "Vaga",
     sample: "Exemplo",
     noMatches: "Nada corresponde a “{search}”.",
+    hoursTbd: "Horário: a confirmar",
   },
 
   categories: {
@@ -194,6 +196,7 @@ const ptBR: Dictionary = {
     roles: { Owner: "Dono", "Co-owner": "Sócio", Manager: "Gerente" },
     phone: "Telefone comercial (número público) *",
     website: "Site ou Instagram",
+    websitePlaceholder: "instagram.com/seunegocio",
   },
 
   dashboard: {
@@ -259,6 +262,12 @@ const ptBR: Dictionary = {
     approve: "Aprovar",
     reject: "Recusar",
     statuses: { approved: "Aprovado", rejected: "Recusado", pending: "Pendente" },
+  },
+
+  notFound: {
+    title: "Não encontramos essa página",
+    text: "O link pode estar desatualizado ou a página pode ter mudado de lugar.",
+    home: "Voltar ao Bosque",
   },
 };
 

@@ -53,7 +53,7 @@ export default async function SiteHeader() {
           </div>
         </div>
 
-        <nav aria-label="Main" className="flex flex-wrap gap-2">
+        <nav aria-label={t.header.mainNav} className="flex flex-wrap gap-2">
           {nav.map((item) => (
             <Link key={item.href} href={item.href} className={PILL}>
               {item.name}

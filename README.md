@@ -39,9 +39,7 @@ Time-series activity can be used to understand patterns in local engagement and 
 
 - Neighborhood activity tracking
 - Visit trends
-- Purchase trends
 - Local economic impact
-- Dashboard analytics
 - Heatmap data
 
 ## Azure Maps Integration

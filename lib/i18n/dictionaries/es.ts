@@ -20,6 +20,7 @@ const es: Dictionary = {
     signIn: "Iniciar sesión",
     signOut: "Cerrar sesión",
     language: "Idioma",
+    mainNav: "Principal",
   },
 
   theme: {
@@ -46,6 +47,7 @@ const es: Dictionary = {
     job: "Empleo",
     sample: "Ejemplo",
     noMatches: "Nada coincide con “{search}”.",
+    hoursTbd: "Horario: por confirmar",
   },
 
   categories: {
@@ -194,6 +196,7 @@ const es: Dictionary = {
     roles: { Owner: "Dueño", "Co-owner": "Socio", Manager: "Gerente" },
     phone: "Teléfono del negocio (número público) *",
     website: "Sitio web o Instagram",
+    websitePlaceholder: "instagram.com/tunegocio",
   },
 
   dashboard: {
@@ -252,13 +255,19 @@ const es: Dictionary = {
     nothing: "No hay nada que revisar por ahora.",
     reviewed: "Ya revisados",
     newBusiness: "Negocio nuevo",
-    claiming: "Reclama un listado",
+    claiming: "Reclamo de un listado",
     unknown: "Desconocido",
     phone: "Teléfono:",
     alreadyOwned: "Este negocio ya tiene un dueño aprobado.",
     approve: "Aprobar",
     reject: "Rechazar",
     statuses: { approved: "Aprobado", rejected: "Rechazado", pending: "Pendiente" },
+  },
+
+  notFound: {
+    title: "No encontramos esa página",
+    text: "Puede que el enlace sea antiguo o que la página se haya movido.",
+    home: "Volver a la Arboleda",
   },
 };
 

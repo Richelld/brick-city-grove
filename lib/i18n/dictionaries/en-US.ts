@@ -20,6 +20,7 @@ const enUS = {
     signIn: "Sign in",
     signOut: "Sign out",
     language: "Language",
+    mainNav: "Main",
   },
 
   theme: {
@@ -46,6 +47,7 @@ const enUS = {
     job: "Job",
     sample: "Sample",
     noMatches: "Nothing matches “{search}”.",
+    hoursTbd: "Hours: TBD",
   },
 
   // Display names for categories stored in the database (which are always in English).
@@ -196,6 +198,7 @@ const enUS = {
     roles: { Owner: "Owner", "Co-owner": "Co-owner", Manager: "Manager" } as Record<string, string>,
     phone: "Business phone (public number) *",
     website: "Website or Instagram",
+    websitePlaceholder: "instagram.com/yourbusiness",
   },
 
   dashboard: {
@@ -261,6 +264,12 @@ const enUS = {
     approve: "Approve",
     reject: "Reject",
     statuses: { approved: "Approved", rejected: "Rejected", pending: "Pending" } as Record<string, string>,
+  },
+
+  notFound: {
+    title: "We couldn't find that page",
+    text: "The link may be old, or the page may have moved.",
+    home: "Back to the Grove",
   },
 };
 

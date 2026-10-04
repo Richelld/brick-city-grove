@@ -13,6 +13,10 @@ const NEWARK: [number, number] = [-74.168, 40.738];
 // Heatmap colors from quiet to busy. The legend below uses the same list.
 const HEAT_COLORS = ["#7cc58f", "#e9d66b", "#f29e4c", "#e5566b"];
 
+// Street and place names on the map, in the visitor's language. Azure Maps has no plain "es",
+// so Spanish uses Mexican Spanish, the closest to the site's Latin American wording.
+const MAP_LANGUAGE: Record<Locale, string> = { "en-US": "en-US", es: "es-MX", "pt-BR": "pt-BR" };
+
 // Dark map for Moonlit Forest, regular map for Daytime Glade.
 function mapStyle() {
   return document.documentElement.dataset.theme === "light" ? "road" : "night";
@@ -85,6 +89,8 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
   type Pin = { place: Place; pin: import("azure-maps-control").HtmlMarker; popup: import("azure-maps-control").Popup };
   const pinsRef = useRef(new Map<string, Pin>());
   const heatLayerRef = useRef<import("azure-maps-control").layer.HeatMapLayer | null>(null);
+  const mapRef = useRef<import("azure-maps-control").Map | null>(null);
+  const localeRef = useRef(locale); // read when the map is created, without re-creating it on every switch
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +104,7 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
         center: NEWARK,
         zoom: 12.5,
         style: mapStyle(),
+        language: MAP_LANGUAGE[localeRef.current],
         authOptions: {
           authType: atlas.AuthenticationType.subscriptionKey,
           subscriptionKey: process.env.NEXT_PUBLIC_AZURE_MAPS_KEY,
@@ -152,6 +159,7 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
         if (positions.length > 0) {
           map!.setCamera({ bounds: atlas.data.BoundingBox.fromPositions(positions), padding: 40 });
         }
+        mapRef.current = map!;
         setReady(true);
       });
     });
@@ -164,10 +172,17 @@ export default function MapView({ places, heat }: { places: Place[]; heat: HeatP
     return () => {
       cancelled = true;
       setReady(false);
+      mapRef.current = null;
       window.removeEventListener("themechange", onThemeChange);
       map?.dispose();
     };
   }, [places, heat]);
+
+  // When the language switcher is used, redraw the street names in the new language.
+  useEffect(() => {
+    localeRef.current = locale;
+    if (ready) mapRef.current?.setStyle({ language: MAP_LANGUAGE[locale] });
+  }, [ready, locale]);
 
   const now = minute === null ? null : newarkTime(minute, locale);
   const weekHour = now?.weekHour ?? null;

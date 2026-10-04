@@ -9,6 +9,7 @@ import type { Place, GroveEvent, Job } from "@/lib/fake-data";
 export type Tab = "food" | "events" | "jobs";
 
 const ALL = "All"; // category filter value meaning "no filter"
+const HOURS_TBD = "Hours: TBD"; // saved in English in the database until an owner adds real hours
 
 type Props = {
   places: Place[];
@@ -41,7 +42,7 @@ export default function HomeTabs({ places, events, jobs, startTab, startSearch }
       .filter((p) => category === ALL || p.category === category)
       .map((p) => {
         const kind = categoryName(t, p.category);
-        return { id: p.id, title: p.name, subtitle: `${kind} · ${p.neighborhood}`, detail: p.hours, photo: p.photo, photoIsLogo: p.photoIsLogo, label: kind, isSample: p.isSample };
+        return { id: p.id, title: p.name, subtitle: `${kind} · ${p.neighborhood}`, detail: p.hours === HOURS_TBD ? t.tabs.hoursTbd : p.hours, photo: p.photo, photoIsLogo: p.photoIsLogo, label: kind, isSample: p.isSample };
       });
   } else if (activeTab === "events") {
     cards = events.map((e) => ({ id: e.id, title: e.title, subtitle: e.date, detail: e.location, photo: e.photo, photoIsLogo: false, label: categoryName(t, e.category), isSample: e.isSample }));

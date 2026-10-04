@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import MapPlaceholder from "./components/MapPlaceholder";
 import MapView from "./components/MapView";
+import LiveCounter from "./components/LiveCounter";
 import HomeTabs, { type Tab } from "./components/HomeTabs";
 import { getPlaces, getEvents, getJobs, getDollarsKeptLocal, getHeatmap } from "@/lib/db";
 
@@ -38,7 +39,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
         <div className="rounded-2xl border border-bark bg-olive p-6">
           <p className="text-sm font-semibold uppercase tracking-wide text-sage">Dollars kept local this week</p>
-          <p className="font-display text-5xl font-bold">${dollars.toLocaleString("en-US")}</p>
+          <LiveCounter initialDollars={dollars} />
           <p className="mt-1 text-sm text-sage">Simulated from local check-ins and purchases (Tiger Data).</p>
         </div>
 

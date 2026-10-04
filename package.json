@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "node --experimental-strip-types --env-file=.env.local scripts/seed.ts",
-    "make-admin": "node --experimental-strip-types --env-file=.env.local scripts/make-admin.ts"
+    "demo:live": "node --experimental-strip-types --env-file=.env.local scripts/demo-live.ts",
+    "make-admin":"node --experimental-strip-types --env-file=.env.local scripts/make-admin.ts"
   },
   "dependencies": {
     "azure-maps-control": "^3.7.4",
